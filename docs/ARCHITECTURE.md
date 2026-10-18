@@ -49,12 +49,15 @@ Go-процесс. Поэтому tailnet появляется в Xray как **
 - Добавляется пакет `tailnet/`:
   - `Handler` реализует `outbound.Handler` (`Tag`, `Dispatch(ctx, link)`, `Start`, `Close`,
     `SenderSettings`, `ProxySettings`).
-  - `Dispatch` читает `session.OutboundFromContext(ctx).Target`, дозванивается через
-    `tsnet.Server.Dial` (TCP) или `ListenPacket`/UDP-обёртку и связывает с `link.Reader/Writer`.
+  - `Dispatch` читает последнюю запись `session.OutboundsFromContext(ctx)` (`Target`), дозванивается
+    через `tsnet.Server.Dial` (TCP и подключённый UDP, один пир на поток, без full-cone) и связывает
+    с `link.Reader/Writer` по образцу `freedom`; счётчики трафика регистрируются под стандартными
+    именами `outbound>>>tailnet>>>traffic>>>uplink|downlink`.
   - Имена приходят как домены (после fakedns или сниффинга) и резолвятся самим tsnet
     (MagicDNS пиров плюс наша таблица для `extra_records`).
-- Конфигурация tailnet передаётся отдельным JSON, не через конфиг Xray: новый метод
-  `CoreController.SetTailnetConfig(json)` (до `StartLoop`). Так V2RayNG-конфиг остаётся
+- Конфигурация tailnet передаётся отдельным JSON, не через конфиг Xray:
+  `CoreController.SetTailnetConfig(json)` (до `StartLoop`), состояние - `TailnetStatus()` (JSON:
+  `state`, `auth_url`, `ips`; Kotlin опрашивает его, колбэка нет). Так V2RayNG-конфиг остаётся
   валидным для обычного Xray, а его JSON-загрузчик нам не мешает.
 - Android-хуки Tailscale (см. [RESEARCH.md](RESEARCH.md)): `netmon.RegisterInterfaceGetter`
   (список интерфейсов из Java, netlink запрещён), обновление маршрута по умолчанию и
@@ -84,9 +87,12 @@ Go-процесс. Поэтому tailnet появляется в Xray как **
    port 53 -> dns-out` при включённом Local DNS).
 3. DoT (порт 853) к этому адресу невозможен, поэтому Android в режиме «Автоматически»
    откатывается на обычный DNS (гипотеза, проверим на устройстве).
-4. DNS-модуль Xray для tailnet-доменов использует сервер `100.100.100.100`, запросы к
-   которому через роутинг уходят в `tailnet` outbound, где встроенный резолвер Tailscale
-   (netstack обслуживает `100.100.100.100:53` по TCP и UDP) отвечает MagicDNS-именами.
+4. DNS-модуль Xray для tailnet-доменов использует сервер `100.100.100.100` (UDP или TCP),
+   запросы к которому через роутинг уходят в `tailnet` outbound. **DNS-мост** в обработчике
+   отвечает на них сам через локальный API узла (`QueryDNS`: MagicDNS, split DNS, `extra_records`
+   Headscale, в том числе с типом `A`), без обращения по сети к `100.100.100.100`: сетевой путь через
+   netstack пересылает запросы на системные DNS-серверы (утечка). Имена вне зон tailnet мост
+   отклоняет (`REFUSED`), ничего не уходит наружу. Проверено тестами для UDP и TCP.
 5. Остальные домены идут как раньше (remote/domestic DNS, fakedns).
 
 Эти шаги проверяются независимо друг от друга (см. фазы 3-4 в PLAN.md): даже без Tailscale
