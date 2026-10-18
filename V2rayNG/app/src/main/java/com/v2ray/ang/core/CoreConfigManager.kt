@@ -16,6 +16,7 @@ import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.extension.isNotNullEmpty
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsManager
+import com.v2ray.ang.handler.TailnetStore
 import com.v2ray.ang.util.HttpUtil
 import com.v2ray.ang.util.JsonUtil
 import com.v2ray.ang.util.LogUtil
@@ -207,6 +208,7 @@ object CoreConfigManager {
         configureDns(configContext, v2rayConfig, policyGroupBalancerTags)
         configureLocalDns(configContext, v2rayConfig)
         configureRootModeDns(v2rayConfig)
+        configureTailnet(v2rayConfig)
 
         // (added by getDns / getCustomLocalDns) to use the balancer, then add
         // the catch-all balancer rule.
@@ -632,6 +634,38 @@ object CoreConfigManager {
     /**
      * Configure local DNS inbounds, outbounds, and routing rules.
      */
+    /**
+     * Sends tailnet domains and subnets to the "tailnet" outbound, which the core attaches itself
+     * when a tailnet node is configured (it is not part of the Xray JSON). The rules go first so
+     * user rules cannot shadow them, and a start without the outbound fails closed.
+     */
+    private fun configureTailnet(v2rayConfig: V2rayConfig) {
+        val settings = TailnetStore.load()
+        if (!settings.enabled || TailnetConfigBuilder.validate(settings) != null) return
+
+        TailnetConfigBuilder.routingRules(settings).asReversed().forEach {
+            v2rayConfig.routing.rules.add(
+                0,
+                V2rayConfig.RoutingBean.RulesBean(
+                    domain = it.domain,
+                    ip = it.ip,
+                    outboundTag = TailnetConfigBuilder.TAG,
+                )
+            )
+        }
+        TailnetConfigBuilder.dnsServer(settings)?.let {
+            v2rayConfig.dns?.servers?.add(
+                0,
+                V2rayConfig.DnsBean.ServersBean(
+                    address = it.address,
+                    domains = it.domains,
+                    skipFallback = true,
+                    finalQuery = true,
+                )
+            )
+        }
+    }
+
     private fun configureLocalDns(configContext: CoreConfigContext, v2rayConfig: V2rayConfig) {
         if (MmkvManager.decodeSettingsBool(AppConfig.PREF_LOCAL_DNS_ENABLED) != true) {
             return

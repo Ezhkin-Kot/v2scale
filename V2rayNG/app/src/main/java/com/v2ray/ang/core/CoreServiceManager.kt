@@ -53,6 +53,7 @@ object CoreServiceManager {
     private var browserDialer: IDialerService? = null
     private var networkMonitor: NetworkMonitor? = null
     private val connectionTestScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val tailnet = TailnetRuntime(coreController, CoroutineScope(SupervisorJob() + Dispatchers.IO))
 
     @Volatile
     private var isReloading = false
@@ -153,11 +154,13 @@ object CoreServiceManager {
         if (dialerAddr.isNotNullEmpty()) {
             CoreNativeManager.reconcileBrowserDialer(dialerAddr)
         }
+        tailnet.configure(service)
         coreController.startLoop(result.content, tunFd)
 
         if (!isRunning()) {
             error("Core failed to start")
         }
+        tailnet.startStatusLoop()
 
         if (browserDialer != null) {
             browserDialer!!.stop()
@@ -191,6 +194,7 @@ object CoreServiceManager {
      */
     fun stopCoreLoop(): Boolean {
         connectionTestScope.coroutineContext.cancelChildren()
+        tailnet.stopStatusLoop()
         val service = getService() ?: return false
 
         networkMonitor?.unregister()
