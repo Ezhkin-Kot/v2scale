@@ -3,6 +3,20 @@
 Записи в обратном хронологическом порядке (новые сверху). Формат: что сделали, что выяснили,
 что дальше.
 
+## 2026-10-18 - Проверка на реальном Headscale (второй прогон, после исправления)
+
+Новый узел `v2scale-probe` (100.64.0.12), зарегистрирован ключом с тегом (ACL по `tag:v2scale`),
+состояние в `~/Projects/misc/v2scale-ref/probe-state` (вне репозитория), control через i2pd-туннель.
+
+- Резолв через встроенный резолвер узла (`Node.QueryDNS`): `ezhkin-drive.ezhkinkot.net`
+  (MagicDNS пира), `nextcloud.`, `calino.`, `fluidd.ezhkin-drive.ezhkinkot.net` (ваши `extra_records`
+  с типом `A`) -> `100.64.0.2`, rcode Success. `example.com` отклонён как не-tailnet имя
+  (никуда не пересылается).
+- `dial nextcloud.ezhkin-drive.ezhkinkot.net:443` (имя из `extra_records`): соединение за 222 мс,
+  TLS 1.3 с Caddy проходит с настоящим именем в SNI.
+- Вывод: узел, MagicDNS, `extra_records` и dial по имени работают на вашей реальной инфраструктуре;
+  осталось проверить это же с телефона (Фаза 3) и сквозной путь через tun V2RayNG (Фаза 4).
+
 ## 2026-10-18 - Проверка на реальном Headscale (первый прогон)
 
 Утилита `libv2scale/cmd/tailnet-probe`, ключ передаётся только через переменную окружения
