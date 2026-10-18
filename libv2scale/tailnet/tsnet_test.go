@@ -30,7 +30,7 @@ func startControl(t *testing.T) (string, *testcontrol.Server) {
 	derpMap := integration.RunDERPAndSTUN(t, logger.Discard, "127.0.0.1")
 	control := &testcontrol.Server{
 		DERPMap:        derpMap,
-		DNSConfig:      &tailcfg.DNSConfig{Proxied: true},
+		DNSConfig:      &tailcfg.DNSConfig{Proxied: true, Domains: []string{"tail-scale.ts.net"}},
 		MagicDNSDomain: "tail-scale.ts.net",
 		Logf:           t.Logf,
 	}
@@ -120,4 +120,25 @@ func TestXrayToTailnetTCP(t *testing.T) {
 			t.Fatalf("expected a failure, got %q", got)
 		}
 	})
+}
+
+// waitDNS blocks until the node's resolver answers for name. WaitUp returns before the
+// tailnet DNS configuration has been applied; until then the built-in resolver forwards
+// every query to the host's resolvers (see docs/RESEARCH.md, DNS leak note).
+func waitDNS(t *testing.T, ctx context.Context, n *Node, name string) {
+	t.Helper()
+	lc, err := n.server().LocalClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		if raw, _, err := lc.QueryDNS(ctx, name, "A"); err == nil {
+			if ips, _ := parseA(t, raw); len(ips) > 0 {
+				return
+			}
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatalf("resolver never answered for %s", name)
 }

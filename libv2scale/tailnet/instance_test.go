@@ -71,6 +71,21 @@ func (d *recordingDialer) requests() []string {
 
 const baseOutbounds = `{"protocol":"freedom","tag":"direct"}`
 
+// buildInstance loads a JSON config and creates (but does not start) an Xray instance.
+func buildInstance(t *testing.T, cfg string) (*core.Instance, error) {
+	t.Helper()
+	pb, err := serial.LoadJSONConfig(strings.NewReader(cfg))
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+	inst, err := core.New(pb)
+	if err != nil {
+		return nil, fmt.Errorf("core.New: %w", err)
+	}
+	t.Cleanup(func() { inst.Close() })
+	return inst, nil
+}
+
 // newInstance builds (but does not start) an Xray instance with a SOCKS inbound.
 func newInstance(t *testing.T, outbounds, rules string) (*core.Instance, string, error) {
 	t.Helper()
@@ -81,15 +96,10 @@ func newInstance(t *testing.T, outbounds, rules string) (*core.Instance, string,
 	  "outbounds": [%s],
 	  "routing": {"domainStrategy":"AsIs","rules":[%s]}
 	}`, port, outbounds, rules)
-	pb, err := serial.LoadJSONConfig(strings.NewReader(cfg))
+	inst, err := buildInstance(t, cfg)
 	if err != nil {
-		return nil, "", fmt.Errorf("load config: %w", err)
+		return nil, "", err
 	}
-	inst, err := core.New(pb)
-	if err != nil {
-		return nil, "", fmt.Errorf("core.New: %w", err)
-	}
-	t.Cleanup(func() { inst.Close() })
 	return inst, fmt.Sprintf("127.0.0.1:%d", port), nil
 }
 

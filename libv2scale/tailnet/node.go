@@ -2,12 +2,14 @@ package tailnet
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"tailscale.com/tailcfg"
 	"tailscale.com/tsnet"
@@ -74,28 +76,80 @@ func (n *Node) Start() error {
 		return err
 	}
 	n.srv = s
-	n.names = newNameTable(n.cfg.Hosts, func(ctx context.Context) ([]tailcfg.DNSRecord, error) {
+	n.names = newNameTable(n.cfg.Hosts, func(ctx context.Context) (*tailcfg.DNSConfig, error) {
 		lc, err := s.LocalClient()
 		if err != nil {
 			return nil, err
 		}
-		dc, err := lc.DNSConfig(ctx)
-		if err != nil {
-			return nil, err
-		}
-		return dc.ExtraRecords, nil
+		return lc.DNSConfig(ctx)
 	})
 	return nil
 }
 
-// WaitUp blocks until the node is running or ctx ends.
+// WaitUp blocks until the node is running and its DNS configuration is in place, or ctx
+// ends. Until the DNS configuration has been applied the node's resolver would forward
+// every query to upstream servers, so callers should not use DNS before WaitUp returns.
 func (n *Node) WaitUp(ctx context.Context) error {
 	s := n.server()
 	if s == nil {
 		return fmt.Errorf("tailnet: not started")
 	}
-	_, err := s.Up(ctx)
-	return err
+	st, err := s.Up(ctx)
+	if err != nil {
+		return err
+	}
+	lc, err := s.LocalClient()
+	if err != nil {
+		return err
+	}
+	dc, err := lc.DNSConfig(ctx)
+	if err != nil || len(dc.Domains) == 0 || st.Self == nil || st.Self.DNSName == "" {
+		return nil // MagicDNS is off for this tailnet, nothing to wait for
+	}
+	deadline := time.Now().Add(15 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, resolvers, err := lc.QueryDNS(ctx, st.Self.DNSName, "A"); err == nil && len(resolvers) == 0 {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+	return nil
+}
+
+// ErrNotTailnetName is returned by QueryDNS for names outside the tailnet.
+var ErrNotTailnetName = errors.New("tailnet: not a tailnet name")
+
+// QueryDNS asks the node's resolver (MagicDNS, split DNS and the control server's extra
+// records) and returns the raw DNS response. Names that do not belong to the tailnet are
+// refused without being sent anywhere, because the node's resolver would forward them to
+// upstream servers.
+func (n *Node) QueryDNS(ctx context.Context, name, qtype string) ([]byte, error) {
+	n.mu.Lock()
+	s, names := n.srv, n.names
+	n.mu.Unlock()
+	if s == nil {
+		return nil, fmt.Errorf("tailnet: not started")
+	}
+	if !names.isTailnetName(ctx, name) {
+		return nil, ErrNotTailnetName
+	}
+	lc, err := s.LocalClient()
+	if err != nil {
+		return nil, err
+	}
+	raw, resolvers, err := lc.QueryDNS(ctx, name, qtype)
+	if err != nil {
+		return nil, err
+	}
+	if len(resolvers) > 0 {
+		// The node chose to forward: its DNS configuration is not what we expect.
+		return nil, fmt.Errorf("tailnet: resolver forwarded %q to upstream servers", name)
+	}
+	return raw, nil
 }
 
 func (n *Node) server() *tsnet.Server {

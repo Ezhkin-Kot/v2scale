@@ -19,7 +19,10 @@ func TestNameTable(t *testing.T) {
 		{Name: "bad.example.net", Type: "A", Value: "not-an-ip"},
 	}
 	tbl := newNameTable(map[string]string{"Pinned.Example.Net": "100.64.9.9"},
-		func(context.Context) ([]tailcfg.DNSRecord, error) { calls++; return recs, nil })
+		func(context.Context) (*tailcfg.DNSConfig, error) {
+			calls++
+			return &tailcfg.DNSConfig{ExtraRecords: recs, Domains: []string{"Tailnet.Example.Net."}}, nil
+		})
 	ctx := context.Background()
 
 	for name, want := range map[string]string{
@@ -44,9 +47,33 @@ func TestNameTable(t *testing.T) {
 	}
 }
 
+func TestIsTailnetName(t *testing.T) {
+	tbl := newNameTable(map[string]string{"pinned.example": "100.64.9.9"},
+		func(context.Context) (*tailcfg.DNSConfig, error) {
+			return &tailcfg.DNSConfig{
+				Domains:      []string{"tailnet.example.net."},
+				ExtraRecords: []tailcfg.DNSRecord{{Name: "svc.corp.example", Type: "A", Value: "100.64.0.2"}},
+			}, nil
+		})
+	ctx := context.Background()
+	for name, want := range map[string]bool{
+		"peer.tailnet.example.net.": true,  // under a tailnet domain
+		"TAILNET.example.net":       true,  // the domain itself
+		"svc.corp.example.":         true,  // extra record
+		"pinned.example":            true,  // static host
+		"example.com.":              false, // ordinary internet name
+		"nottailnet.example.net.":   false, // suffix must be a whole label
+		"evil.net.":                 false,
+	} {
+		if got := tbl.isTailnetName(ctx, name); got != want {
+			t.Errorf("isTailnetName(%q) = %v, want %v", name, got, want)
+		}
+	}
+}
+
 func TestNameTableStaticWinsAndSurvivesFetchErrors(t *testing.T) {
 	tbl := newNameTable(map[string]string{"a.example": "100.64.1.1"},
-		func(context.Context) ([]tailcfg.DNSRecord, error) { return nil, errors.New("no netmap yet") })
+		func(context.Context) (*tailcfg.DNSConfig, error) { return nil, errors.New("no netmap yet") })
 	if ip, ok := tbl.lookup(context.Background(), "a.example"); !ok || ip.String() != "100.64.1.1" {
 		t.Errorf("static host: %v %v", ip, ok)
 	}

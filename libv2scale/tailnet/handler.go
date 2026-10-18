@@ -16,7 +16,9 @@ import (
 	"github.com/xtls/xray-core/common/signal"
 	"github.com/xtls/xray-core/common/task"
 	"github.com/xtls/xray-core/features/policy"
+	"github.com/xtls/xray-core/features/stats"
 	"github.com/xtls/xray-core/transport"
+	"github.com/xtls/xray-core/transport/internet/stat"
 )
 
 // Dialer opens connections inside the tailnet. *tsnet.Server satisfies it through
@@ -33,7 +35,10 @@ func (f DialFunc) DialContext(ctx context.Context, network, address string) (net
 	return f(ctx, network, address)
 }
 
-const dialTimeout = 20 * time.Second
+const (
+	dialTimeout = 20 * time.Second
+	udpIdle     = 2 * time.Minute
+)
 
 // Handler is an Xray outbound.Handler that carries connections into the tailnet.
 // Routing rules select it by tag; the connection target (IP or domain) arrives in
@@ -42,6 +47,9 @@ type Handler struct {
 	tag     string
 	dialer  Dialer
 	timeout policy.Timeout
+
+	uplink, downlink stats.Counter // optional, nil when statistics are off
+	dns              DNSResolver   // optional, serves 100.100.100.100:53 itself
 }
 
 // NewHandler creates a handler. timeouts may be nil to use Xray's defaults.
@@ -59,6 +67,11 @@ var defaultTimeouts = policy.Timeout{
 	ConnectionIdle: 300 * time.Second,
 	UplinkOnly:     1 * time.Second,
 	DownlinkOnly:   1 * time.Second,
+}
+
+// SetCounters enables traffic statistics (bytes sent to and received from the tailnet).
+func (h *Handler) SetCounters(uplink, downlink stats.Counter) {
+	h.uplink, h.downlink = uplink, downlink
 }
 
 // Tag implements outbound.Handler.
@@ -107,38 +120,80 @@ func (h *Handler) process(ctx context.Context, link *transport.Link) error {
 		return errors.New("target not specified")
 	}
 	dest := ob.Target
-	if dest.Network != xnet.Network_TCP {
-		return errors.New("tailnet outbound does not support ", dest.Network, " yet")
+	network := "tcp"
+	switch dest.Network {
+	case xnet.Network_TCP:
+	case xnet.Network_UDP:
+		network = "udp"
+	default:
+		return errors.New("tailnet outbound does not support ", dest.Network)
+	}
+
+	if h.dns != nil && isMagicDNS(dest) {
+		return h.processDNS(ctx, link, dest.Network)
 	}
 
 	dctx, dcancel := context.WithTimeout(ctx, dialTimeout)
-	conn, err := h.dialer.DialContext(dctx, "tcp", dest.NetAddr())
+	raw, err := h.dialer.DialContext(dctx, network, dest.NetAddr())
 	dcancel()
 	if err != nil {
 		return errors.New("failed to open tailnet connection to ", dest).Base(err)
 	}
+	var conn net.Conn = raw
+	if h.uplink != nil || h.downlink != nil {
+		conn = &stat.CounterConnection{Connection: raw, ReadCounter: h.downlink, WriteCounter: h.uplink}
+	}
 	defer conn.Close()
 	errors.LogInfo(ctx, "tailnet connection opened to ", dest)
 
+	idle := h.timeout.ConnectionIdle
+	if network == "udp" && (idle <= 0 || idle > udpIdle) {
+		idle = udpIdle // datagram flows have no close signal, so expire them like a NAT would
+	}
 	ctx, cancel := context.WithCancel(ctx)
-	timer := signal.CancelAfterInactivity(ctx, cancel, h.timeout.ConnectionIdle)
+	timer := signal.CancelAfterInactivity(ctx, cancel, idle)
 
 	requestDone := func() error {
 		defer timer.SetTimeout(h.timeout.DownlinkOnly)
-		if err := buf.Copy(link.Reader, buf.NewWriter(conn), buf.UpdateActivity(timer)); err != nil {
+		var w buf.Writer = buf.NewWriter(conn)
+		if network == "udp" {
+			w = &packetWriter{conn: conn}
+		}
+		if err := buf.Copy(link.Reader, w, buf.UpdateActivity(timer)); err != nil {
 			return errors.New("failed to process request").Base(err)
 		}
 		return nil
 	}
 	responseDone := func() error {
 		defer timer.SetTimeout(h.timeout.UplinkOnly)
-		if err := buf.Copy(buf.NewReader(conn), link.Writer, buf.UpdateActivity(timer)); err != nil {
+		var r buf.Reader = buf.NewReader(conn)
+		if network == "udp" {
+			r = buf.NewPacketReader(conn)
+		}
+		if err := buf.Copy(r, link.Writer, buf.UpdateActivity(timer)); err != nil {
 			return errors.New("failed to process response").Base(err)
 		}
 		return nil
 	}
 	if err := task.Run(ctx, requestDone, task.OnSuccess(responseDone, task.Close(link.Writer))); err != nil {
 		return errors.New("connection ends").Base(err)
+	}
+	return nil
+}
+
+// packetWriter sends every buffer as its own datagram, preserving packet boundaries.
+type packetWriter struct{ conn net.Conn }
+
+// WriteMultiBuffer implements buf.Writer.
+func (w *packetWriter) WriteMultiBuffer(mb buf.MultiBuffer) error {
+	defer buf.ReleaseMulti(mb)
+	for _, b := range mb {
+		if b == nil || b.IsEmpty() {
+			continue
+		}
+		if _, err := w.conn.Write(b.Bytes()); err != nil {
+			return err
+		}
 	}
 	return nil
 }
