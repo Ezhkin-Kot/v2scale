@@ -48,6 +48,16 @@ class TailnetStatusTest {
     }
 
     @Test
+    fun parsesControlReachability() {
+        val s = TailnetStatus.parse("""{"state":"starting","control":"unreachable","control_error":"connection refused"}""")
+        assertTrue(s.controlUnreachable)
+        assertEquals("connection refused", s.controlError)
+        assertFalse(TailnetStatus.parse("""{"state":"running","control":"unreachable"}""").controlUnreachable)
+        assertFalse(TailnetStatus.parse("{}").controlUnreachable)
+        assertEquals(TailnetStatus.CONTROL_UNKNOWN, TailnetStatus.parse("{}").control)
+    }
+
+    @Test
     fun blankAndMalformedInputIsStopped() {
         assertEquals(TailnetStatus(), TailnetStatus.parse(null))
         assertEquals(TailnetStatus(), TailnetStatus.parse(" "))

@@ -34,6 +34,18 @@ class MainTailnetTest {
     }
 
     @Test
+    fun anUnreachableControlServerIsShownWhileWaitingForTheNode() {
+        val down = TailnetSnapshot(true, TailnetStatus("starting", control = TailnetStatus.CONTROL_UNREACHABLE, controlError = "i/o timeout"))
+        assertEquals(MainTailnet.ControlUnreachable("i/o timeout"), mainTailnetOf(true, down, none))
+    }
+
+    @Test
+    fun aRunningNodeIgnoresALateUnreachableReport() {
+        val late = TailnetSnapshot(true, TailnetStatus(TailnetStatus.RUNNING, "", listOf("100.64.0.13"), control = TailnetStatus.CONTROL_UNREACHABLE))
+        assertEquals(MainTailnet.Ready(listOf("100.64.0.13")), mainTailnetOf(true, late, none))
+    }
+
+    @Test
     fun loginWithoutALinkIsJustConnecting() {
         val noLink = TailnetSnapshot(true, TailnetStatus(TailnetStatus.NEEDS_LOGIN, ""))
         assertEquals(MainTailnet.Connecting, mainTailnetOf(true, noLink, none))

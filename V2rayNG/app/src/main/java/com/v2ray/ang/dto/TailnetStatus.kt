@@ -10,14 +10,22 @@ data class TailnetStatus(
     val ips: List<String> = emptyList(),
     /** Epoch millis when the daemon published this status, 0 when unknown. */
     val updatedAt: Long = 0,
+    /** Reachability of the control server while the node is not running yet: unknown, ok or unreachable. */
+    val control: String = CONTROL_UNKNOWN,
+    @SerializedName("control_error") val controlError: String = "",
 ) {
     val isRunning get() = state == RUNNING
     val needsLogin get() = state == NEEDS_LOGIN && authUrl.isNotEmpty()
+
+    /** The node is waiting for control and the last probe could not reach it. */
+    val controlUnreachable get() = !isRunning && control == CONTROL_UNREACHABLE
 
     companion object {
         const val STOPPED = "stopped"
         const val RUNNING = "running"
         const val NEEDS_LOGIN = "needs-login"
+        const val CONTROL_UNKNOWN = "unknown"
+        const val CONTROL_UNREACHABLE = "unreachable"
 
         /** A published status older than this belongs to a daemon that is gone. */
         const val STALE_AFTER_MS = 10_000L
@@ -33,7 +41,7 @@ data class TailnetStatus(
                 ?: return TailnetStatus()
             // Gson bypasses defaults for missing fields, so normalize nulls.
             @Suppress("USELESS_ELVIS")
-            return TailnetStatus(parsed.state ?: STOPPED, parsed.authUrl ?: "", parsed.ips ?: emptyList(), parsed.updatedAt)
+            return TailnetStatus(parsed.state ?: STOPPED, parsed.authUrl ?: "", parsed.ips ?: emptyList(), parsed.updatedAt, parsed.control ?: CONTROL_UNKNOWN, parsed.controlError ?: "")
         }
     }
 }

@@ -607,4 +607,6 @@
     <string name="tailnet_path_direct">напрямую</string>
     <string name="tailnet_path_relay">через ретранслятор</string>
     <string name="tailnet_path_tcp">соединение</string>
+    <string name="tailnet_main_control_down">Tailnet: сервер управления недоступен (%1$s)</string>
+    <string name="tailnet_status_control_down">Подключение… сервер управления недоступен (%1$s). Проверьте адрес, прокси или i2pd.</string>
 </resources>

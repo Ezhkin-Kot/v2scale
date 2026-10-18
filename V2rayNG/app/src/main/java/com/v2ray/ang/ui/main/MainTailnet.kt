@@ -9,6 +9,8 @@ sealed interface MainTailnet {
     data object Hidden : MainTailnet
     data object Connecting : MainTailnet
     data object NeedsLogin : MainTailnet
+    /** Waiting for the node, and the control server does not answer: [error] says how it failed. */
+    data class ControlUnreachable(val error: String) : MainTailnet
     data class Ready(val ips: List<String>) : MainTailnet
     data object Testing : MainTailnet
     data class Tested(val result: TailnetTestResult) : MainTailnet
@@ -32,6 +34,7 @@ fun mainTailnetOf(isRunning: Boolean, snapshot: TailnetSnapshot, test: TailnetTe
         TailnetTestState.None -> when {
             snapshot.status.isRunning -> MainTailnet.Ready(snapshot.status.ips)
             snapshot.status.needsLogin -> MainTailnet.NeedsLogin
+            snapshot.status.controlUnreachable -> MainTailnet.ControlUnreachable(snapshot.status.controlError)
             else -> MainTailnet.Connecting
         }
     }

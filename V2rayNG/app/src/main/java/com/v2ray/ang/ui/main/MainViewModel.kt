@@ -983,6 +983,10 @@ class MainViewModel(
         MainTailnet.Hidden -> null
         MainTailnet.Connecting -> dataSource.getString(R.string.tailnet_main_connecting)
         MainTailnet.NeedsLogin -> dataSource.getString(R.string.tailnet_main_login)
+        is MainTailnet.ControlUnreachable -> dataSource.getString(
+            R.string.tailnet_main_control_down,
+            tailnet.error.ifBlank { dataSource.getString(R.string.connection_test_empty_message) }
+        )
         is MainTailnet.Ready -> dataSource.getString(R.string.tailnet_main_ready, tailnet.ips.firstOrNull().orEmpty())
         MainTailnet.Testing -> dataSource.getString(R.string.tailnet_main_testing)
         is MainTailnet.Tested -> formatTailnetTest(tailnet.result)
@@ -1012,6 +1016,8 @@ class MainViewModel(
                 else if (running) MainStatus.Connected else MainStatus.Disconnected
             )
         }
+        // The tailnet line depends on isRunning, so it must follow it (a stopped core hides the line).
+        publishTailnet()
     }
 
     override fun onCleared() {

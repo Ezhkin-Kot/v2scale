@@ -603,4 +603,6 @@
     <string name="tailnet_path_direct">direct</string>
     <string name="tailnet_path_relay">via relay</string>
     <string name="tailnet_path_tcp">connection</string>
+    <string name="tailnet_main_control_down">Tailnet: control server unreachable (%1$s)</string>
+    <string name="tailnet_status_control_down">Connecting… the control server is not reachable (%1$s). Check the address, the proxy or i2pd.</string>
 </resources>

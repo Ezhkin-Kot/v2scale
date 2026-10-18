@@ -177,6 +177,10 @@ private fun TailnetStatusRow(status: TailnetStatus, enabled: Boolean, onOpenLogi
         !enabled -> stringResource(R.string.tailnet_status_disabled)
         status.isRunning -> stringResource(R.string.tailnet_status_running, status.ips.joinToString())
         status.needsLogin -> stringResource(R.string.tailnet_status_login)
+        status.controlUnreachable -> stringResource(
+            R.string.tailnet_status_control_down,
+            status.controlError.ifBlank { stringResource(R.string.connection_test_empty_message) }
+        )
         status.state == TailnetStatus.STOPPED -> stringResource(R.string.tailnet_status_stopped)
         else -> stringResource(R.string.tailnet_status_connecting)
     }
