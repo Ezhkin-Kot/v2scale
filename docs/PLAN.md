@@ -95,17 +95,17 @@
 
 ## Фаза 3. Android: встраивание ядра
 
-- [ ] 3.1 Хуки Android: `netmon.RegisterInterfaceGetter` (интерфейсы из Kotlin JSON-ом),
+- [~] 3.1 Хуки Android (достаточно синтетического getter из Фазы 1, список интерфейсов из Java не потребовался; смена сети подхватывается перезапуском ядра при живом узле): `netmon.RegisterInterfaceGetter` (интерфейсы из Kotlin JSON-ом),
   обновление маршрута по умолчанию и `InjectEvent` при смене сети
   (`service/NetworkMonitor.kt`), каталоги HOME/TMPDIR, `TS_NO_LOGS_NO_SUPPORT`.
   Образец: `tsnet-forward/forwarder/android.go`, `tailscale-android/libtailscale/net.go`.
-- [ ] 3.2 Решить, нужен ли `SetAndroidProtectFunc`/`BindToNetwork` (V2RayNG исключает себя из
+- [x] 3.2 Решено: `protect`/`BindToNetwork` не нужны, приложение исключено из VPN (проверено на Nothing Phone). Исходный вопрос:  нужен ли `SetAndroidProtectFunc`/`BindToNetwork` (V2RayNG исключает себя из
   VPN, поэтому, вероятно, достаточно BindToNetwork для корректной смены сети): проверить опытом.
 - [x] 3.3 Сборка `libv2ray.aar` с tailnet (25,4 МБ, APK 59 МБ); память проверим на устройстве в 3.5.
 - [x] 3.4 Kotlin (глобальная страница «Tailnet» в Настройках; статус через MMKV, ключ стирается после входа): настройки tailnet (control URL, auth key, hostname, прокси control-канала),
   передача в ядро перед `StartLoop`, отображение статуса.
-- [~] 3.5 Роутинг (правила и DNS-сервер генерируются в `CoreConfigManager`, юнит-тесты есть; проверка на устройстве ждёт ключа): правила `-> tailnet` для доменов и подсетей; ручные тесты на устройстве.
-- [ ] 3.6 Смена сети (Wi-Fi <-> LTE, режим полёта, сон): узел должен восстанавливаться без
+- [x] 3.5 Роутинг, проверено на устройстве (Nextcloud, Calino CalDAV, Fluidd в браузере; DNS-перехват через блокировку DoT/853): правила `-> tailnet` для доменов и подсетей; ручные тесты на устройстве.
+- [~] 3.6 Wi-Fi <-> LTE проверено, остались режим полёта и сон. Смена сети (Wi-Fi <-> LTE, режим полёта, сон): узел должен восстанавливаться без
   перезапуска сервиса (известный класс багов sing-box#4515).
 - [ ] 3.7 Автоперезапуск после сбоев, Doze, фоновые ограничения Nothing OS (foreground service
   уже есть в V2RayNG).
