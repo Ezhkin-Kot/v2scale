@@ -10,6 +10,7 @@ import com.v2ray.ang.dto.ConnectionTestResult
 import com.v2ray.ang.dto.GroupMapItem
 import com.v2ray.ang.dto.LocateTarget
 import com.v2ray.ang.dto.RealPingResult
+import com.v2ray.ang.dto.TailnetTestResult
 import com.v2ray.ang.dto.TestServiceMessage
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.dto.entities.ServersCache
@@ -39,6 +40,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.regex.PatternSyntaxException
 
@@ -104,6 +106,12 @@ class MainViewModel(
     private var selectedGroupLoadJob: Job? = null
     private var reloadJob: Job? = null
     private var testResultFlushJob: Job? = null
+
+    // ---------- Tailnet line ----------
+    private var tailnetSnapshot = TailnetSnapshot()
+    private var tailnetTest: TailnetTestState = TailnetTestState.None
+    private var tailnetPollJob: Job? = null
+    private var tailnetTestTimeoutJob: Job? = null
     private val pendingTestResults = linkedMapOf<String, Long>()
 
     private val testRequests = MainTestRequests()
@@ -173,6 +181,14 @@ class MainViewModel(
 
             is MainServiceEvent.MeasureDelayCancelled -> {
                 if (testRequests.completeCurrent(event.requestId)) resetTestStatus()
+            }
+
+            is MainServiceEvent.TailnetTestDone -> {
+                val pending = tailnetTest as? TailnetTestState.Running
+                if (pending?.requestId != event.requestId) return
+                tailnetTestTimeoutJob?.cancel()
+                tailnetTest = event.result?.let { TailnetTestState.Done(it) } ?: TailnetTestState.None
+                publishTailnet()
             }
 
             is MainServiceEvent.MeasureConfigCancelled -> {
@@ -279,6 +295,7 @@ class MainViewModel(
             MainAction.TestAllServers -> testAllRealPing(true)
             MainAction.TestRealAllServers -> testAllRealPing()
             MainAction.CancelTesting -> cancelAllPing()
+            MainAction.TestTailnet -> testTailnet()
             MainAction.RemoveAllServers -> removeAllServerAsync()
             MainAction.RemoveDuplicateServers -> removeDuplicateServerAsync()
             MainAction.RemoveInvalidServers -> removeInvalidServerAsync()
@@ -921,7 +938,71 @@ class MainViewModel(
     }
 
     // ---------- Running state ----------
+    private fun testTailnet() {
+        val state = _uiState.value
+        if (state.tailnet == MainTailnet.Hidden || tailnetTest is TailnetTestState.Running) return
+        val requestId = UUID.randomUUID().toString()
+        tailnetTest = TailnetTestState.Running(requestId)
+        publishTailnet()
+        dataSource.testTailnet(requestId)
+        // A lost reply (daemon died mid-test) must not leave the line on "testing" forever.
+        tailnetTestTimeoutJob?.cancel()
+        tailnetTestTimeoutJob = viewModelScope.launch {
+            delay(TAILNET_TEST_TIMEOUT_MS)
+            if ((tailnetTest as? TailnetTestState.Running)?.requestId == requestId) {
+                tailnetTest = TailnetTestState.Done(TailnetTestResult(error = dataSource.getString(R.string.tailnet_main_no_reply)))
+                publishTailnet()
+            }
+        }
+    }
+
+    private fun publishTailnet() {
+        _uiState.update { it.copy(tailnet = mainTailnetOf(it.isRunning, tailnetSnapshot, tailnetTest)) }
+    }
+
+    /** Follows the node state while the core runs; the daemon process publishes it to settings storage. */
+    private fun updateTailnetPolling(running: Boolean) {
+        tailnetPollJob?.cancel()
+        tailnetPollJob = null
+        tailnetTestTimeoutJob?.cancel()
+        tailnetTest = TailnetTestState.None
+        if (!running) {
+            tailnetSnapshot = TailnetSnapshot()
+            return
+        }
+        tailnetPollJob = viewModelScope.launch {
+            while (true) {
+                tailnetSnapshot = withContext(ioDispatcher) { dataSource.readTailnet() }
+                publishTailnet()
+                delay(TAILNET_POLL_MS)
+            }
+        }
+    }
+
+    internal fun formatTailnet(tailnet: MainTailnet): String? = when (tailnet) {
+        MainTailnet.Hidden -> null
+        MainTailnet.Connecting -> dataSource.getString(R.string.tailnet_main_connecting)
+        MainTailnet.NeedsLogin -> dataSource.getString(R.string.tailnet_main_login)
+        is MainTailnet.Ready -> dataSource.getString(R.string.tailnet_main_ready, tailnet.ips.firstOrNull().orEmpty())
+        MainTailnet.Testing -> dataSource.getString(R.string.tailnet_main_testing)
+        is MainTailnet.Tested -> formatTailnetTest(tailnet.result)
+    }
+
+    private fun formatTailnetTest(result: TailnetTestResult): String {
+        if (!result.ok) {
+            val detail = result.error.ifBlank { dataSource.getString(R.string.connection_test_empty_message) }
+            return dataSource.getString(R.string.tailnet_main_failed, detail)
+        }
+        val path = when (result.path) {
+            "direct" -> dataSource.getString(R.string.tailnet_path_direct)
+            "relay" -> dataSource.getString(R.string.tailnet_path_relay)
+            else -> dataSource.getString(R.string.tailnet_path_tcp)
+        }
+        return dataSource.getString(R.string.tailnet_main_ok, result.latencyMillis, path, result.peer)
+    }
+
     private fun updateRunningState(running: Boolean, clearTestingText: Boolean = true) {
+        if (_uiState.value.isRunning != running) updateTailnetPolling(running)
         if (!running || clearTestingText) testRequests.invalidateCurrent()
         _uiState.update { state ->
             state.copy(
@@ -939,6 +1020,8 @@ class MainViewModel(
         selectedGroupLoadJob?.cancel()
         reloadJob?.cancel()
         filterJob?.cancel()
+        tailnetPollJob?.cancel()
+        tailnetTestTimeoutJob?.cancel()
         cancelAllPing()
         dataSource.close()
         super.onCleared()
@@ -957,5 +1040,7 @@ class MainViewModel(
 
     private companion object {
         const val TEST_RESULT_FLUSH_INTERVAL_MS = 500L
+        const val TAILNET_POLL_MS = 2_000L
+        const val TAILNET_TEST_TIMEOUT_MS = 20_000L
     }
 }

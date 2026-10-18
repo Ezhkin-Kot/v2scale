@@ -60,6 +60,8 @@ interface MainDataSource : Closeable {
     fun sendMsg2TestService(msg: TestServiceMessage, requestId: String? = null)
     fun cancelAllPing()
     fun testCurrentServerRealPing(requestId: String)
+    fun testTailnet(requestId: String)
+    fun readTailnet(): TailnetSnapshot
 
     fun syncSubscriptions()
     fun initAssets()

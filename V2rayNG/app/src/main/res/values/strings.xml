@@ -590,4 +590,17 @@
     <string name="tailnet_open_login">Open login page</string>
     <string name="tailnet_apply_hint">Changes apply the next time the VPN starts.</string>
     <string name="tailnet_saved">Saved</string>
+    <string name="tailnet_test_target">Connection test target</string>
+    <string name="tailnet_test_target_hint">Optional host:port that the test on the main screen dials through the tailnet. Empty pings an online peer.</string>
+    <string name="tailnet_error_test_target">Enter host:port, for example nextcloud.example.net:443</string>
+    <string name="tailnet_main_connecting">Tailnet: connecting…</string>
+    <string name="tailnet_main_login">Tailnet: login required</string>
+    <string name="tailnet_main_ready">Tailnet: connected %1$s. Tap to test.</string>
+    <string name="tailnet_main_testing">Tailnet: testing…</string>
+    <string name="tailnet_main_ok">Tailnet: %1$d ms, %2$s (%3$s)</string>
+    <string name="tailnet_main_failed">Tailnet: test failed, %1$s</string>
+    <string name="tailnet_main_no_reply">no reply from the core</string>
+    <string name="tailnet_path_direct">direct</string>
+    <string name="tailnet_path_relay">via relay</string>
+    <string name="tailnet_path_tcp">connection</string>
 </resources>

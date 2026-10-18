@@ -23,6 +23,7 @@ data class MainUiState(
     val isRunning: Boolean = false,
     val isTesting: Boolean = false,
     val status: MainStatus = MainStatus.Disconnected,
+    val tailnet: MainTailnet = MainTailnet.Hidden,
     val locateTarget: LocateTarget? = null,
     val confirmRemove: Boolean = false,
     val doubleColumnDisplay: Boolean = false,
@@ -37,6 +38,7 @@ sealed interface MainAction {
     data object RefreshGroups : MainAction
     data object ToggleService : MainAction
     data object TestCurrentServer : MainAction
+    data object TestTailnet : MainAction
     data object TestAllServers : MainAction
     data object TestRealAllServers : MainAction
     data object CancelTesting : MainAction

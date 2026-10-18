@@ -32,7 +32,7 @@ private object MmkvTailnetSettingsStore : TailnetSettingsStore {
     override fun load() = TailnetStore.load()
     override fun save(settings: TailnetSettings) = TailnetStore.save(settings)
     override fun readStatus() =
-        TailnetStatus.parse(MmkvManager.decodeSettingsString(AppConfig.PREF_TAILNET_STATUS))
+        TailnetStatus.fresh(TailnetStatus.parse(MmkvManager.decodeSettingsString(AppConfig.PREF_TAILNET_STATUS)))
 }
 
 class TailnetViewModel(

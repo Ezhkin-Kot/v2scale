@@ -20,6 +20,7 @@ object TailnetStore {
         subnets = MmkvManager.decodeSettingsString(AppConfig.PREF_TAILNET_SUBNETS)
             ?.let { TailnetConfigBuilder.splitList(it) }
             ?: listOf(TailnetSettings.DEFAULT_SUBNET),
+        testTarget = MmkvManager.decodeSettingsString(AppConfig.PREF_TAILNET_TEST_TARGET).orEmpty(),
     )
 
     fun save(s: TailnetSettings) {
@@ -31,6 +32,7 @@ object TailnetStore {
         MmkvManager.encodeSettings(AppConfig.PREF_TAILNET_MAGIC_DNS, s.magicDns)
         MmkvManager.encodeSettings(AppConfig.PREF_TAILNET_DOMAINS, s.domains.joinToString("\n"))
         MmkvManager.encodeSettings(AppConfig.PREF_TAILNET_SUBNETS, s.subnets.joinToString("\n"))
+        MmkvManager.encodeSettings(AppConfig.PREF_TAILNET_TEST_TARGET, s.testTarget.trim())
     }
 
     /** The auth key is single-use; once the node has registered it must not stay on disk. */

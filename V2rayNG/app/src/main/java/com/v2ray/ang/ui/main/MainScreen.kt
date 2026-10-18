@@ -45,6 +45,7 @@ fun MainScreen(
     val isLoading by mainViewModel.isLoading.collectAsStateWithLifecycle()
     val isRunning = uiState.isRunning
     val displayText = mainViewModel.formatStatus(uiState.status)
+    val tailnetText = mainViewModel.formatTailnet(uiState.tailnet)
     val selectedGuid = uiState.selectedGuid
     val doubleColumnDisplay = uiState.doubleColumnDisplay
     val confirmRemove = uiState.confirmRemove
@@ -187,6 +188,7 @@ fun MainScreen(
             bottomBar = {
                 MainBottomBar(
                     displayText = displayText,
+                    tailnetText = tailnetText,
                     isRunning = isRunning,
                     isDarkTheme = isDarkTheme,
                     onAction = onAction

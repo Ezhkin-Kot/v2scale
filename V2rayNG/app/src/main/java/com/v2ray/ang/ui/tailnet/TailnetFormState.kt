@@ -13,6 +13,7 @@ data class TailnetFormState(
     val magicDns: Boolean = true,
     val domains: String = "",
     val subnets: String = TailnetSettings.DEFAULT_SUBNET,
+    val testTarget: String = "",
 ) {
     fun toSettings() = TailnetSettings(
         enabled = enabled,
@@ -23,6 +24,7 @@ data class TailnetFormState(
         magicDns = magicDns,
         domains = TailnetConfigBuilder.splitList(domains),
         subnets = TailnetConfigBuilder.splitList(subnets),
+        testTarget = testTarget.trim(),
     )
 
     fun problem(): TailnetConfigBuilder.Problem? = TailnetConfigBuilder.validate(toSettings())
@@ -37,6 +39,7 @@ data class TailnetFormState(
             magicDns = s.magicDns,
             domains = s.domains.joinToString("\n"),
             subnets = s.subnets.joinToString("\n"),
+            testTarget = s.testTarget,
         )
     }
 }

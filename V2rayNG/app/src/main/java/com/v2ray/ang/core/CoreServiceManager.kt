@@ -371,6 +371,14 @@ object CoreServiceManager {
         }
     }
 
+    /** Tests the tailnet node and reports the result to the UI under [requestId]. */
+    private fun testTailnet(requestId: String) {
+        val service = getService() ?: return
+        tailnet.runTest { result ->
+            MessageHelper.sendMsg2UI(service, AppConfig.MSG_TAILNET_TEST_RESULT, result, requestId)
+        }
+    }
+
     /**
      * Gets the current service instance.
      * @return The current service instance, or null if not available.
@@ -507,6 +515,11 @@ object CoreServiceManager {
                 AppConfig.MSG_MEASURE_DELAY -> {
                     if (isOrderedBroadcast) resultCode = Activity.RESULT_OK
                     measureV2rayDelay(intent.getStringExtra("content").orEmpty())
+                }
+
+                AppConfig.MSG_TAILNET_TEST -> {
+                    if (isOrderedBroadcast) resultCode = Activity.RESULT_OK
+                    testTailnet(intent.getStringExtra("content").orEmpty())
                 }
             }
 

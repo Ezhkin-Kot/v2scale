@@ -34,6 +34,7 @@ object AppConfig {
     const val PREF_TAILNET_MAGIC_DNS = "pref_tailnet_magic_dns"
     const val PREF_TAILNET_DOMAINS = "pref_tailnet_domains"
     const val PREF_TAILNET_SUBNETS = "pref_tailnet_subnets"
+    const val PREF_TAILNET_TEST_TARGET = "pref_tailnet_test_target"
     /** Written by the daemon, read by the UI; not a user setting. */
     const val PREF_TAILNET_STATUS = "pref_tailnet_status"
     const val PREF_FAKE_DNS_ENABLED = "pref_fake_dns_enabled"
@@ -205,6 +206,9 @@ object AppConfig {
     const val MSG_MEASURE_CONFIG_SUCCESS = 72
     const val MSG_MEASURE_CONFIG_NOTIFY = 73
     const val MSG_MEASURE_CONFIG_FINISH = 74
+
+    const val MSG_TAILNET_TEST = 9
+    const val MSG_TAILNET_TEST_RESULT = 91
 
     const val MSG_SUB_UPDATE_START = 8
     const val MSG_SUB_UPDATE_CANCEL = 81

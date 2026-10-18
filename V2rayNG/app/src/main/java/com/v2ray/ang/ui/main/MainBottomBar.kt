@@ -44,6 +44,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun MainBottomBar(
     displayText: String,
+    tailnetText: String?,
     isRunning: Boolean,
     isDarkTheme: Boolean,
     onAction: (MainAction) -> Unit
@@ -81,6 +82,26 @@ fun MainBottomBar(
                         contentDescription = displayText
                     }
                 )
+            }
+            if (tailnetText != null) {
+                AppDivider()
+                // A separate action from the server test above, hence its own clickable row.
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = { onAction(MainAction.TestTailnet) })
+                        .height(48.dp)
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = tailnetText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.semantics {
+                            contentDescription = tailnetText
+                        }
+                    )
+                }
             }
         }
         FloatingActionButton(

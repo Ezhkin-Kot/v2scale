@@ -10,6 +10,8 @@ import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.dto.ConnectionTestResult
 import com.v2ray.ang.dto.RealPingResult
+import com.v2ray.ang.dto.TailnetStatus
+import com.v2ray.ang.dto.TailnetTestResult
 import com.v2ray.ang.dto.SubscriptionUpdateResult
 import com.v2ray.ang.dto.TestServiceMessage
 import com.v2ray.ang.dto.entities.ProfileItem
@@ -73,6 +75,9 @@ class MainRepository(
                     requestId
                 )
                 AppConfig.MSG_MEASURE_CONFIG_CANCEL -> MainServiceEvent.MeasureConfigCancelled(requestId)
+                AppConfig.MSG_TAILNET_TEST_RESULT -> safeIntent
+                    .serializable<TailnetTestResult>("content")
+                    ?.let { MainServiceEvent.TailnetTestDone(it, requestId) }
 
                 else -> null
             }
@@ -224,6 +229,17 @@ class MainRepository(
             if (!handled) mainServiceEventChannel.trySend(MainServiceEvent.MeasureDelayCancelled(requestId))
         }
     }
+
+    override fun testTailnet(requestId: String) {
+        MessageHelper.sendMsg2ServiceForResult(app, AppConfig.MSG_TAILNET_TEST, requestId) { handled ->
+            if (!handled) mainServiceEventChannel.trySend(MainServiceEvent.TailnetTestDone(null, requestId))
+        }
+    }
+
+    override fun readTailnet(): TailnetSnapshot = TailnetSnapshot(
+        enabled = MmkvManager.decodeSettingsBool(AppConfig.PREF_TAILNET_ENABLED, false),
+        status = TailnetStatus.fresh(TailnetStatus.parse(MmkvManager.decodeSettingsString(AppConfig.PREF_TAILNET_STATUS))),
+    )
 
     override fun syncSubscriptions() {
         SubscriptionUpdater.sync(app)

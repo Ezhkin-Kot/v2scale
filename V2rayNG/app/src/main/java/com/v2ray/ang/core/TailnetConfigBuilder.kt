@@ -14,6 +14,7 @@ object TailnetConfigBuilder {
     const val MAGIC_DNS_ADDRESS = "100.100.100.100"
 
     private val domainPattern = Regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$")
+    private val targetPattern = Regex("^[a-z0-9.-]+:\\d{1,5}$")
     private val cidrPattern = Regex("^[0-9a-fA-F:.]+/\\d{1,3}$")
 
     /** Returns a user-facing problem key, or null when [s] can be started. */
@@ -27,10 +28,11 @@ object TailnetConfigBuilder {
         }
         if (s.domains.any { normalizeDomain(it) == null }) return Problem.DOMAIN
         if (s.subnets.any { !cidrPattern.matches(it.trim()) }) return Problem.SUBNET
+        if (s.testTarget.isNotBlank() && !targetPattern.matches(s.testTarget.trim().lowercase())) return Problem.TEST_TARGET
         return null
     }
 
-    enum class Problem { CONTROL_URL, CONTROL_PROXY, DOMAIN, SUBNET }
+    enum class Problem { CONTROL_URL, CONTROL_PROXY, DOMAIN, SUBNET, TEST_TARGET }
 
     /** Lowercases and strips a leading `*.`/`.`; null when not a valid domain suffix. */
     fun normalizeDomain(raw: String): String? {

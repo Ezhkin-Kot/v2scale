@@ -15,6 +15,8 @@ data class TailnetSettings(
     val domains: List<String> = emptyList(),
     /** CIDR ranges routed into the tailnet. */
     val subnets: List<String> = listOf(DEFAULT_SUBNET),
+    /** Optional host:port dialed through the tailnet by the connection test; empty pings a peer. */
+    val testTarget: String = "",
 ) {
     companion object {
         const val DEFAULT_SUBNET = "100.64.0.0/10"

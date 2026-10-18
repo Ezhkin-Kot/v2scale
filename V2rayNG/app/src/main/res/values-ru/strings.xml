@@ -594,4 +594,17 @@
     <string name="tailnet_open_login">Открыть страницу входа</string>
     <string name="tailnet_apply_hint">Изменения применяются при следующем запуске VPN.</string>
     <string name="tailnet_saved">Сохранено</string>
+    <string name="tailnet_test_target">Цель теста подключения</string>
+    <string name="tailnet_test_target_hint">Необязательный host:port, к которому тест на главной странице подключается через tailnet. Пусто: пинг доступного узла.</string>
+    <string name="tailnet_error_test_target">Введите host:port, например nextcloud.example.net:443</string>
+    <string name="tailnet_main_connecting">Tailnet: подключение…</string>
+    <string name="tailnet_main_login">Tailnet: требуется вход</string>
+    <string name="tailnet_main_ready">Tailnet: подключено %1$s. Нажмите для проверки.</string>
+    <string name="tailnet_main_testing">Tailnet: проверка…</string>
+    <string name="tailnet_main_ok">Tailnet: %1$d мс, %2$s (%3$s)</string>
+    <string name="tailnet_main_failed">Tailnet: проверка не прошла, %1$s</string>
+    <string name="tailnet_main_no_reply">ядро не ответило</string>
+    <string name="tailnet_path_direct">напрямую</string>
+    <string name="tailnet_path_relay">через ретранслятор</string>
+    <string name="tailnet_path_tcp">соединение</string>
 </resources>

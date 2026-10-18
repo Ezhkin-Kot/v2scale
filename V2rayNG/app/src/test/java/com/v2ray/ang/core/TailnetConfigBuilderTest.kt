@@ -29,6 +29,15 @@ class TailnetConfigBuilderTest {
     }
 
     @Test
+    fun validatesTheOptionalTestTarget() {
+        assertNull(TailnetConfigBuilder.validate(base))
+        assertNull(TailnetConfigBuilder.validate(base.copy(testTarget = " Nextcloud.Example.net:443 ")))
+        assertNull(TailnetConfigBuilder.validate(base.copy(testTarget = "100.64.0.2:443")))
+        assertEquals(TailnetConfigBuilder.Problem.TEST_TARGET, TailnetConfigBuilder.validate(base.copy(testTarget = "nextcloud.example.net")))
+        assertEquals(TailnetConfigBuilder.Problem.TEST_TARGET, TailnetConfigBuilder.validate(base.copy(testTarget = "https://x.net:443")))
+    }
+
+    @Test
     fun normalizesDomains() {
         assertEquals("example.net", TailnetConfigBuilder.normalizeDomain(" *.Example.NET. "))
         assertNull(TailnetConfigBuilder.normalizeDomain(""))

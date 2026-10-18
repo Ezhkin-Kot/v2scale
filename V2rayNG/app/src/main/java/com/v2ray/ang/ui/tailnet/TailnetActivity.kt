@@ -152,6 +152,14 @@ fun TailnetScreen(
                 isError = problem == TailnetConfigBuilder.Problem.SUBNET,
                 supportingText = if (problem == TailnetConfigBuilder.Problem.SUBNET) stringResource(R.string.tailnet_error_subnet) else stringResource(R.string.tailnet_subnets_hint),
             )
+            FormTextField(
+                label = stringResource(R.string.tailnet_test_target),
+                value = form.testTarget,
+                onValueChange = { value -> viewModel.edit { it.copy(testTarget = value) } },
+                placeholder = "nextcloud.example.net:443",
+                isError = problem == TailnetConfigBuilder.Problem.TEST_TARGET,
+                supportingText = if (problem == TailnetConfigBuilder.Problem.TEST_TARGET) stringResource(R.string.tailnet_error_test_target) else stringResource(R.string.tailnet_test_target_hint),
+            )
             Text(
                 text = stringResource(R.string.tailnet_apply_hint),
                 style = MaterialTheme.typography.bodySmall,

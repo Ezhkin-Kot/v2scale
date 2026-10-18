@@ -34,6 +34,20 @@ class TailnetStatusTest {
     }
 
     @Test
+    fun aRecentStatusIsKeptAndAnOldOrUndatedOneIsStopped() {
+        val running = TailnetStatus(TailnetStatus.RUNNING, "", listOf("100.64.0.13"), updatedAt = 100_000)
+        assertEquals(running, TailnetStatus.fresh(running, now = 105_000))
+        assertEquals(running, TailnetStatus.fresh(running, now = 110_000))
+        assertEquals(TailnetStatus(), TailnetStatus.fresh(running, now = 110_001))
+        assertEquals(TailnetStatus(), TailnetStatus.fresh(running.copy(updatedAt = 0), now = 1))
+    }
+
+    @Test
+    fun parsesThePublishTime() {
+        assertEquals(42L, TailnetStatus.parse("""{"state":"running","updatedAt":42}""").updatedAt)
+    }
+
+    @Test
     fun blankAndMalformedInputIsStopped() {
         assertEquals(TailnetStatus(), TailnetStatus.parse(null))
         assertEquals(TailnetStatus(), TailnetStatus.parse(" "))
