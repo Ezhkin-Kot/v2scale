@@ -2,6 +2,7 @@ package tailnet
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"path/filepath"
@@ -126,6 +127,26 @@ func TestNodeResolvesExtraRecordsAndStaticHosts(t *testing.T) {
 		}
 		if got := roundTrip(t, c); got != "hello" {
 			t.Errorf("got %q", got)
+		}
+	})
+	t.Run("a name outside the tailnet is refused, not handed to system DNS", func(t *testing.T) {
+		// tsnet would resolve this with the system resolver and leak it; the node must refuse it
+		// itself, which shows as our sentinel and not as a DNS error from the Go resolver.
+		_, err := phone.DialContext(ctx, "tcp", "public.example.com:443")
+		if !errors.Is(err, ErrNotTailnetName) {
+			t.Errorf("want ErrNotTailnetName, got %v", err)
+		}
+	})
+	t.Run("a missing name under a tailnet domain fails without leaving the node", func(t *testing.T) {
+		dctx, dcancel := context.WithTimeout(ctx, 10*time.Second)
+		defer dcancel()
+		_, err := phone.DialContext(dctx, "tcp", "nope.tail-scale.ts.net:7")
+		if err == nil {
+			t.Fatal("a name that does not exist must not dial")
+		}
+		var dnsErr *net.DNSError
+		if errors.As(err, &dnsErr) {
+			t.Errorf("the system resolver was used: %v", err)
 		}
 	})
 	t.Run("tsnet alone cannot dial type A extra records (documents the quirk)", func(t *testing.T) {

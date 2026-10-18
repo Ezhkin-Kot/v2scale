@@ -212,7 +212,10 @@ func (n *Node) server() *tsnet.Server {
 }
 
 // DialContext dials inside the tailnet. Names from the config, from the tailnet's extra
-// records and MagicDNS names are all resolved.
+// records and MagicDNS names are resolved here, by the node, and never by anything else: tsnet's
+// own dialer falls back to the process's system resolver for a name it does not know, which would
+// send that name to the local network's DNS server in the clear (this app is excluded from the VPN).
+// A name that is not part of the tailnet is refused instead.
 func (n *Node) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	n.mu.Lock()
 	s, names := n.srv, n.names
@@ -220,7 +223,67 @@ func (n *Node) DialContext(ctx context.Context, network, addr string) (net.Conn,
 	if s == nil {
 		return nil, fmt.Errorf("tailnet: not started")
 	}
-	return names.wrap(s.Dial)(ctx, network, addr)
+	if host, port, err := net.SplitHostPort(addr); err == nil {
+		if _, perr := netip.ParseAddr(host); perr != nil {
+			ip, err := n.resolveName(ctx, names, host)
+			if err != nil {
+				return nil, err
+			}
+			addr = net.JoinHostPort(ip.String(), port)
+		}
+	}
+	return s.Dial(ctx, network, addr)
+}
+
+// resolveName resolves a tailnet name through the node's own zone, or refuses it.
+func (n *Node) resolveName(ctx context.Context, names *nameTable, host string) (netip.Addr, error) {
+	if ip, ok := names.lookup(ctx, host); ok {
+		return ip, nil
+	}
+	if !names.isTailnetName(ctx, host) {
+		return netip.Addr{}, fmt.Errorf("%w: %q", ErrNotTailnetName, host)
+	}
+	for _, qtype := range []string{"A", "AAAA"} {
+		raw, err := n.QueryDNS(ctx, host, qtype)
+		if err != nil {
+			return netip.Addr{}, err
+		}
+		if ip, ok := firstAddress(raw); ok {
+			return ip, nil
+		}
+	}
+	return netip.Addr{}, fmt.Errorf("tailnet: no address for %q", host)
+}
+
+// firstAddress returns the first A or AAAA record of a DNS response.
+func firstAddress(raw []byte) (netip.Addr, bool) {
+	var p dnsmessage.Parser
+	if _, err := p.Start(raw); err != nil {
+		return netip.Addr{}, false
+	}
+	if p.SkipAllQuestions() != nil {
+		return netip.Addr{}, false
+	}
+	for {
+		h, err := p.AnswerHeader()
+		if err != nil {
+			return netip.Addr{}, false
+		}
+		switch h.Type {
+		case dnsmessage.TypeA:
+			if r, err := p.AResource(); err == nil {
+				return netip.AddrFrom4(r.A), true
+			}
+		case dnsmessage.TypeAAAA:
+			if r, err := p.AAAAResource(); err == nil {
+				return netip.AddrFrom16(r.AAAA), true
+			}
+		default:
+			if p.SkipAnswer() != nil {
+				return netip.Addr{}, false
+			}
+		}
+	}
 }
 
 // Status reports the current node state.
