@@ -93,3 +93,21 @@ func TestDNSBridgeAnswers(t *testing.T) {
 		}
 	})
 }
+
+func TestIsLocalAnswer(t *testing.T) {
+	local := nodeAnswer("echo.tail-scale.ts.net.", [4]byte{100, 64, 0, 1}) // built with the AA flag
+	if !isLocalAnswer(local) {
+		t.Error("an authoritative answer must count as local")
+	}
+	n := dnsmessage.MustNewName("echo.tail-scale.ts.net.")
+	b := dnsmessage.NewBuilder(nil, dnsmessage.Header{ID: 1, Response: true}) // no AA: forwarded
+	b.StartQuestions()
+	b.Question(dnsmessage.Question{Name: n, Type: dnsmessage.TypeA, Class: dnsmessage.ClassINET})
+	fwd, _ := b.Finish()
+	if isLocalAnswer(fwd) {
+		t.Error("a non-authoritative answer must not count as local")
+	}
+	if isLocalAnswer([]byte{1, 2}) {
+		t.Error("a truncated message must not count as local")
+	}
+}

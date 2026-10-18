@@ -108,7 +108,7 @@ func (n *Node) WaitUp(ctx context.Context) error {
 	}
 	deadline := time.Now().Add(15 * time.Second)
 	for time.Now().Before(deadline) {
-		if _, resolvers, err := lc.QueryDNS(ctx, st.Self.DNSName, "A"); err == nil && len(resolvers) == 0 {
+		if raw, _, err := lc.QueryDNS(ctx, st.Self.DNSName, "A"); err == nil && isLocalAnswer(raw) {
 			return nil
 		}
 		select {
@@ -141,15 +141,24 @@ func (n *Node) QueryDNS(ctx context.Context, name, qtype string) ([]byte, error)
 	if err != nil {
 		return nil, err
 	}
-	raw, resolvers, err := lc.QueryDNS(ctx, name, qtype)
+	raw, _, err := lc.QueryDNS(ctx, name, qtype)
 	if err != nil {
 		return nil, err
 	}
-	if len(resolvers) > 0 {
-		// The node chose to forward: its DNS configuration is not what we expect.
-		return nil, fmt.Errorf("tailnet: resolver forwarded %q to upstream servers", name)
+	if !isLocalAnswer(raw) {
+		// The resolver forwarded the query (its DNS configuration is not applied yet, or the
+		// name is not ours after all). The returned resolvers list cannot tell us this: it
+		// names the upstreams that would be used, and is non-empty on any tailnet with
+		// global nameservers even when the answer is local.
+		return nil, fmt.Errorf("tailnet: %q was not answered by the node's own zone", name)
 	}
 	return raw, nil
+}
+
+// isLocalAnswer reports whether a DNS response comes from the node's own zone: Tailscale
+// marks those answers authoritative (AA), forwarded answers from upstream servers are not.
+func isLocalAnswer(raw []byte) bool {
+	return len(raw) >= 4 && raw[2]&0x04 != 0
 }
 
 func (n *Node) server() *tsnet.Server {
