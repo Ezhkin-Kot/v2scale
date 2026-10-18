@@ -67,3 +67,8 @@ V2rayNG/app/google-services.json
 # Ignore OS-specific files
 Thumbs.db
 .DS_Store
+
+# V2Scale
+libv2scale/assets/*.dat
+libv2scale/*.aar
+libv2scale/*-sources.jar
