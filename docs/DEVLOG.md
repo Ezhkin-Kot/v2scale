@@ -150,3 +150,18 @@
   скачались в кэш модулей), `go.mod`/`go.sum` не изменились.
 - Следующий шаг: Фаза 0 (воспроизводимая сборка upstream), для неё нужно поставить JDK 21,
   Android SDK platform 37, build-tools 37.0.0, NDK 30.0.16248370 (см. INSTALLED-TOOLS.md).
+
+## Фаза 3 (начата)
+
+- Решено: UI tailnet - глобальная страница (DECISIONS.md).
+- Добавлено: `TailnetSettings`/`TailnetStore` (MMKV), `TailnetConfigBuilder` (чистая логика: JSON узла,
+  правила роутинга в `tailnet` первыми, DNS-сервер `100.100.100.100` с `finalQuery`/`skipFallback`,
+  чтобы имена tailnet не утекали в публичный DNS), `TailnetRuntime` (в демоне: `setTailnetConfig` до
+  `startLoop`, опрос `tailnetStatus` раз в 2 с, публикация в MMKV, стирание auth key после `running`),
+  страница `TailnetActivity` + `TailnetViewModel` (en/ru). Включённый tailnet с неверными настройками
+  останавливает запуск ядра с ошибкой, а не молча отключается.
+- Смена сети: `NetworkMonitor` уже перезапускает ядро (`reloadCore`), вместе с ним перезапускается и узел;
+  списка интерфейсов из Java пока нет, работает синтетический getter (3.1 отложено до теста на устройстве).
+- Проверено: все JVM-тесты и `assemblePlaystoreDebug` проходят; APK установлен, страница открывается из
+  Настроек. Не проверено на устройстве (Not run): регистрация узла, роутинг, MagicDNS, смена сети, TalkBack,
+  пересоздание Activity. Локали кроме en/ru пока без перевода (откат на английский), полировка в Фазе 5.
