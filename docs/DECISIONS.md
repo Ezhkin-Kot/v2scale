@@ -4,7 +4,9 @@
 
 | Дата | Решение | Причина |
 | ---- | ------- | ------- |
-| 2026-10-18 | Репозиторий V2Scale - полный клон (форк) `2dust/v2rayNG` как корень; remote `upstream` смотрит на оригинал, наша ветка `main`, `master` - зеркало upstream | Обычный `git merge upstream/master`, на GitHub будет настоящий fork (выбрано пользователем) |
+| 2026-10-18 | Репозиторий V2Scale - полный клон (форк) `2dust/v2rayNG` как корень; remote `upstream` смотрит на оригинал | Обычный `git merge upstream/master`, на GitHub настоящий fork (выбрано пользователем) |
+| 2026-10-18 | Ветка по умолчанию и рабочая - `master`; отдельной `main` нет | Решение пользователя; наши изменения идут прямо поверх `upstream/master` |
+| 2026-10-18 | Коммиты в стиле Conventional Commits, без соавторов (`Co-Authored-By`) | Требование пользователя |
 | 2026-10-18 | Обёртка ядра (AndroidLibXrayLite, ~580 строк Go, LGPL-3.0) вендорится в `libv2scale/`, подмодуль удалён | Одна сборка и один репозиторий, Tailscale-код рядом (выбрано пользователем). Исходная точка: коммит `1be1e62` |
 | 2026-10-18 | Форк Xray-core и Tailscale не делаем; интеграция через публичный `outbound.Manager.AddHandler` и библиотеку `tsnet` | Минимальная поддержка при обновлениях |
 | 2026-10-18 | Go-пакет обёртки сохраняет имя `libv2ray` | Kotlin-код V2RayNG импортирует `libv2ray.*`, не трогаем |
@@ -43,9 +45,12 @@
 
 ```bash
 git fetch upstream
-git checkout master && git merge --ff-only upstream/master   # зеркало
-git checkout main && git merge master                         # наши изменения поверх
+git merge upstream/master          # в ветке master; конфликты разбираем вручную
+git push origin master
 ```
+
+GitHub-репозиторий `Ezhkin-Kot/v2scale` создан как fork (кнопка Sync fork тоже подойдёт, но
+после неё нужно `git pull`).
 
 Правило: изменения в файлах upstream делаем малыми, логически завершёнными коммитами;
 новую функциональность по возможности кладём в новые файлы (`libv2scale/tailnet/`,

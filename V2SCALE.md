@@ -34,8 +34,9 @@ MagicDNS.
   `libv2ray`, чтобы Kotlin-код менялся минимально.
 - `docs/` - документация проекта.
 
-Ветки: `main` - наша разработка. `master` - зеркало upstream (`git fetch upstream`).
-Подробности синхронизации - в [docs/DECISIONS.md](docs/DECISIONS.md).
+Ветка по умолчанию и рабочая - `master` (как в upstream). Новости upstream подтягиваются
+`git fetch upstream && git merge upstream/master`. Подробности - в [docs/DECISIONS.md](docs/DECISIONS.md).
+Репозиторий на GitHub - настоящий fork `2dust/v2rayNG`.
 
 ## Лицензия
 
