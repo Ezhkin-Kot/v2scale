@@ -561,4 +561,33 @@
     <string name="connection_test_empty_message">no details available</string>
     <string name="value_unknown">unknown</string>
 
+
+    <!-- Tailnet -->
+    <string name="title_tailnet">Tailnet</string>
+    <string name="summary_tailnet">Reach your Tailscale or Headscale network through the same tunnel</string>
+    <string name="tailnet_enable">Enable Tailnet</string>
+    <string name="tailnet_enable_summary">Runs an embedded Tailscale node inside the core; independent of the selected profile</string>
+    <string name="tailnet_control_url">Control server URL</string>
+    <string name="tailnet_auth_key">Auth key</string>
+    <string name="tailnet_auth_key_hint">Only for the first login, it is erased after the node registers. Leave empty to sign in with a link.</string>
+    <string name="tailnet_hostname">Node name</string>
+    <string name="tailnet_control_proxy">Proxy for the control connection</string>
+    <string name="tailnet_domains">Tailnet domains</string>
+    <string name="tailnet_domains_hint">One per line. Names under these domains are resolved and reached through the tailnet.</string>
+    <string name="tailnet_magic_dns">Resolve tailnet names</string>
+    <string name="tailnet_magic_dns_summary">Answers names from the tailnet, nothing is sent to public DNS</string>
+    <string name="tailnet_subnets">Subnets routed into the tailnet</string>
+    <string name="tailnet_subnets_hint">One CIDR per line. The tailnet range 100.64.0.0/10 is always included.</string>
+    <string name="tailnet_error_control_url">Enter an http:// or https:// address</string>
+    <string name="tailnet_error_control_proxy">Enter an address such as http://127.0.0.1:4444</string>
+    <string name="tailnet_error_domain">One of the domains is not valid</string>
+    <string name="tailnet_error_subnet">One of the subnets is not a valid CIDR range</string>
+    <string name="tailnet_status_disabled">Tailnet is off</string>
+    <string name="tailnet_status_stopped">Not running. Start the VPN to connect.</string>
+    <string name="tailnet_status_connecting">Connecting…</string>
+    <string name="tailnet_status_running">Connected: %1$s</string>
+    <string name="tailnet_status_login">Login required</string>
+    <string name="tailnet_open_login">Open login page</string>
+    <string name="tailnet_apply_hint">Changes apply the next time the VPN starts.</string>
+    <string name="tailnet_saved">Saved</string>
 </resources>

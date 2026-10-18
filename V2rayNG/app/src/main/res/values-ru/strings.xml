@@ -565,4 +565,33 @@
     <string name="connection_test_empty_message">подробности отсутствуют</string>
     <string name="value_unknown">неизвестно</string>
 
+
+    <!-- Tailnet -->
+    <string name="title_tailnet">Tailnet</string>
+    <string name="summary_tailnet">Доступ к сети Tailscale или Headscale через тот же туннель</string>
+    <string name="tailnet_enable">Включить Tailnet</string>
+    <string name="tailnet_enable_summary">Встроенный узел Tailscale внутри ядра, не зависит от выбранного профиля</string>
+    <string name="tailnet_control_url">Адрес сервера управления</string>
+    <string name="tailnet_auth_key">Ключ авторизации</string>
+    <string name="tailnet_auth_key_hint">Нужен только для первого входа и стирается после регистрации узла. Оставьте пустым, чтобы войти по ссылке.</string>
+    <string name="tailnet_hostname">Имя узла</string>
+    <string name="tailnet_control_proxy">Прокси для соединения с сервером управления</string>
+    <string name="tailnet_domains">Домены tailnet</string>
+    <string name="tailnet_domains_hint">По одному в строке. Имена в этих доменах разрешаются и открываются через tailnet.</string>
+    <string name="tailnet_magic_dns">Разрешать имена tailnet</string>
+    <string name="tailnet_magic_dns_summary">Имена разрешаются внутри tailnet, в публичный DNS ничего не уходит</string>
+    <string name="tailnet_subnets">Подсети, идущие в tailnet</string>
+    <string name="tailnet_subnets_hint">По одной CIDR в строке. Диапазон tailnet 100.64.0.0/10 включён всегда.</string>
+    <string name="tailnet_error_control_url">Введите адрес вида http:// или https://</string>
+    <string name="tailnet_error_control_proxy">Введите адрес вида http://127.0.0.1:4444</string>
+    <string name="tailnet_error_domain">Один из доменов указан неверно</string>
+    <string name="tailnet_error_subnet">Одна из подсетей не является корректной CIDR</string>
+    <string name="tailnet_status_disabled">Tailnet выключен</string>
+    <string name="tailnet_status_stopped">Не запущен. Запустите VPN для подключения.</string>
+    <string name="tailnet_status_connecting">Подключение…</string>
+    <string name="tailnet_status_running">Подключено: %1$s</string>
+    <string name="tailnet_status_login">Требуется вход</string>
+    <string name="tailnet_open_login">Открыть страницу входа</string>
+    <string name="tailnet_apply_hint">Изменения применяются при следующем запуске VPN.</string>
+    <string name="tailnet_saved">Сохранено</string>
 </resources>

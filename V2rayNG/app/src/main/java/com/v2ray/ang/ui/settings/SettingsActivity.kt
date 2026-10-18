@@ -48,6 +48,7 @@ import com.v2ray.ang.ui.compose.NavigationBarsSpacer
 import com.v2ray.ang.ui.compose.SettingsEditItem
 import com.v2ray.ang.ui.compose.SettingsListItem
 import com.v2ray.ang.ui.compose.SettingsMenuItem
+import com.v2ray.ang.ui.tailnet.TailnetActivity
 import com.v2ray.ang.ui.compose.SettingsSwitchItem
 import com.v2ray.ang.ui.compose.ThemeManager
 import com.v2ray.ang.ui.compose.verticalScrollbar
@@ -89,7 +90,8 @@ class SettingsActivity : BaseComponentActivity() {
             viewModel = viewModel,
             onBackClick = { finish() },
             onModeHelpClicked = { Utils.openUri(this, AppConfig.APP_WIKI_MODE) },
-            onSystemVpnSettingsClicked = ::openSystemVpnSettings
+            onSystemVpnSettingsClicked = ::openSystemVpnSettings,
+            onTailnetClicked = { startActivity(Intent(this, TailnetActivity::class.java)) }
         )
     }
 }
@@ -100,7 +102,8 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
     onBackClick: () -> Unit,
     onModeHelpClicked: () -> Unit,
-    onSystemVpnSettingsClicked: () -> Unit
+    onSystemVpnSettingsClicked: () -> Unit,
+    onTailnetClicked: () -> Unit
 ) {
     val scrollState = rememberScrollState()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
@@ -668,6 +671,12 @@ fun SettingsScreen(
                     onValueChanged = { ipApiUrl = it }
                 )
             }
+
+            SettingsMenuItem(
+                title = stringResource(R.string.title_tailnet),
+                subtitle = stringResource(R.string.summary_tailnet),
+                onClick = onTailnetClicked
+            )
 
             CollapsiblePreferenceGroupHeader(
                 title = stringResource(R.string.title_mode_settings),
