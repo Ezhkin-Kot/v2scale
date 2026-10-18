@@ -268,7 +268,8 @@ object CoreServiceManager {
             connectionTestScope.coroutineContext.cancelChildren()
             LogUtil.i(AppConfig.TAG, "StartCore-Manager: Core reload start...")
 
-            coreController.stopLoop()
+            // V2Scale: keeps the tailnet node, reconnecting it to control takes far longer than a reload.
+            coreController.stopLoopForReload()
             launchCore(service, tunFd, isReload = true)
 
             LogUtil.i(AppConfig.TAG, "StartCore-Manager: Core reload finished")

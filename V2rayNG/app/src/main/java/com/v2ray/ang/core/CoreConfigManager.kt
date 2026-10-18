@@ -671,6 +671,7 @@ object CoreConfigManager {
                     domains = it.domains,
                     skipFallback = true,
                     finalQuery = true,
+                    disableCache = it.disableCache,
                 )
             )
         }

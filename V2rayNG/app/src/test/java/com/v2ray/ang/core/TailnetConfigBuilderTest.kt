@@ -83,6 +83,7 @@ class TailnetConfigBuilderTest {
         val dns = TailnetConfigBuilder.dnsServer(base.copy(domains = listOf("example.net")))!!
         assertEquals("100.100.100.100", dns.address)
         assertEquals(listOf("domain:example.net"), dns.domains)
+        assertTrue(dns.disableCache)
     }
 
     @Test

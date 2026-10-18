@@ -80,7 +80,7 @@ object TailnetConfigBuilder {
         if (!s.magicDns) return null
         val domains = domainMatchers(s)
         if (domains.isEmpty()) return null
-        return DnsSpec(MAGIC_DNS_ADDRESS, domains)
+        return DnsSpec(MAGIC_DNS_ADDRESS, domains, disableCache = true)
     }
 
     /**
@@ -94,5 +94,10 @@ object TailnetConfigBuilder {
 
     const val DOT_PORT = "853"
 
-    data class DnsSpec(val address: String, val domains: List<String>)
+    /**
+     * [disableCache]: right after a network change the node briefly refuses names while it rebuilds
+     * its DNS config, and a cached refusal would keep the name unresolvable. The node answers
+     * locally, so skipping the core's cache costs nothing.
+     */
+    data class DnsSpec(val address: String, val domains: List<String>, val disableCache: Boolean)
 }

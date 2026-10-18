@@ -354,6 +354,7 @@ data class V2rayConfig(
             val clientIp: String? = null,
             val skipFallback: Boolean? = null,
             val finalQuery: Boolean? = null,
+            val disableCache: Boolean? = null,
             val tag: String? = null,
         )
     }
