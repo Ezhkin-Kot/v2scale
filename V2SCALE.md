@@ -12,13 +12,16 @@ MagicDNS.
 В V2Scale tailnet становится ещё одним outbound внутри Xray: правило роутинга
 «этот домен или подсеть -> tailnet» работает так же, как «-> proxy» или «-> direct».
 
-**Статус:** подготовка. Репозиторий создан, исходники изучены, план составлен.
-Следующий шаг - Фаза 0 (воспроизводимая сборка upstream). См. [docs/PLAN.md](docs/PLAN.md).
+**Статус:** работает на реальном телефоне. Встроенный узел Tailscale/Headscale в одном VPN с Xray,
+глобальная страница «Tailnet», MagicDNS, смена сети Wi-Fi <-> LTE, тест подключения на главной.
+Nextcloud, Calino (CalDAV) и Fluidd проверены. Дальше: режим полёта, Doze, диагностика control-канала,
+полировка и релиз. См. [docs/PLAN.md](docs/PLAN.md). Как настроить с нуля - [docs/SETUP.md](docs/SETUP.md).
 
 ## Документация
 
 | Файл | Содержание |
 | ---- | ---------- |
+| [docs/SETUP.md](docs/SETUP.md) | Установка и настройка с нуля: Headscale, ACL, сборка, приложение, типичные проблемы |
 | [docs/PLAN.md](docs/PLAN.md) | Пошаговый план по фазам, критерии готовности, что изучить |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Целевая архитектура и потоки данных |
 | [docs/RESEARCH.md](docs/RESEARCH.md) | Что выяснено по исходникам V2RayNG, Xray-core и Tailscale (с путями к файлам) |
