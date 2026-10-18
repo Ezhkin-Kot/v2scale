@@ -128,6 +128,75 @@ func TestCoreControllerWithTailnet(t *testing.T) {
 	}
 }
 
+// A reload (network change) must not cost the node: same config and the same node object, still
+// running while the core is down, reattached to the new core, and gone only on a real stop.
+func TestReloadKeepsTailnetNode(t *testing.T) {
+	controlURL, _ := testenv.StartControl(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	server, serverIP := testenv.StartNode(t, ctx, controlURL, "echo")
+	testenv.ServeEcho(t, server, "7")
+
+	x := NewCoreController(testHandler{})
+	dir := t.TempDir()
+	cfg := `{"control_url":"` + controlURL + `","state_dir":"` + dir + `","hostname":"phone"`
+	if err := x.SetTailnetConfig(cfg + `,"auth_key":"tskey-x"}`); err != nil {
+		t.Fatal(err)
+	}
+	port := freePort(t)
+	if err := x.StartLoop(xrayConfig(port), 0); err != nil {
+		t.Fatal(err)
+	}
+	waitRunning(t, x)
+	first := x.tailnet.node
+	_, _, ips := tailnetState_(t, x)
+
+	if err := x.StopLoopForReload(); err != nil {
+		t.Fatal(err)
+	}
+	if s, _, _ := tailnetState_(t, x); s != "running" {
+		t.Errorf("node must keep running while the core is down: %s", s)
+	}
+
+	// The auth key is erased after registration; the app then reloads without it.
+	if err := x.SetTailnetConfig(cfg + `}`); err != nil {
+		t.Fatal(err)
+	}
+	port = freePort(t)
+	if err := x.StartLoop(xrayConfig(port), 0); err != nil {
+		t.Fatal(err)
+	}
+	if x.tailnet.node != first {
+		t.Error("reload must reuse the node, not create another one")
+	}
+	if _, _, again := tailnetState_(t, x); len(again) == 0 || again[0] != ips[0] {
+		t.Errorf("address changed over a reload: %v -> %v", ips, again)
+	}
+	if got, err := echoVia(fmt.Sprintf("127.0.0.1:%d", port), net.JoinHostPort(serverIP.String(), "7")); err != nil || got != "hello" {
+		t.Fatalf("after reload: %q, %v", got, err)
+	}
+
+	// A different node (hostname) must not be mistaken for the running one.
+	if err := x.StopLoopForReload(); err != nil {
+		t.Fatal(err)
+	}
+	if err := x.SetTailnetConfig(`{"control_url":"` + controlURL + `","state_dir":"` + t.TempDir() + `","hostname":"tablet"}`); err != nil {
+		t.Fatal(err)
+	}
+	if err := x.StartLoop(xrayConfig(freePort(t)), 0); err != nil {
+		t.Fatal(err)
+	}
+	if x.tailnet.node == first {
+		t.Error("changed config must start a new node")
+	}
+	if err := x.StopLoop(); err != nil {
+		t.Fatal(err)
+	}
+	if s, _, _ := tailnetState_(t, x); s != "stopped" {
+		t.Errorf("StopLoop must release the node: %s", s)
+	}
+}
+
 func TestSetTailnetConfigValidation(t *testing.T) {
 	x := NewCoreController(testHandler{})
 	if err := x.SetTailnetConfig(`{"control_url":"nope","state_dir":"/x"}`); err == nil {

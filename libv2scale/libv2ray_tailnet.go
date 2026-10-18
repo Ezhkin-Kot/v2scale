@@ -19,6 +19,9 @@ type tailnetState struct {
 	mu   sync.Mutex
 	cfg  *tailnet.Config
 	node *tailnet.Node
+	// nodeID is the Identity of the config node was started with. A node outlives
+	// StopLoopForReload so that a reload does not cost a control reconnect.
+	nodeID string
 }
 
 // SetTailnetConfig sets the embedded tailnet node (JSON, see tailnet.Config) used from the
@@ -64,38 +67,62 @@ func (x *CoreController) TailnetStatus() string {
 	return string(b)
 }
 
-// startTailnet brings the node up in the background and registers its outbound before the
-// core starts. It is a no-op without a tailnet config.
+// startTailnet attaches the "tailnet" outbound to inst before the core starts. A node that is
+// already running for the same config is reused (a core reload keeps it), otherwise it is
+// brought up in the background. It closes a leftover node when tailnet is no longer configured.
 func (x *CoreController) startTailnet(inst *core.Instance) error {
 	x.tailnet.mu.Lock()
+	defer x.tailnet.mu.Unlock()
 	cfg := x.tailnet.cfg
-	x.tailnet.mu.Unlock()
 	if cfg == nil {
+		x.closeNodeLocked()
 		return nil
 	}
-	node, err := tailnet.NewNode(*cfg)
-	if err != nil {
-		return err
+	if x.tailnet.node != nil && x.tailnet.nodeID != cfg.Identity() {
+		x.closeNodeLocked()
 	}
-	if err := node.Start(); err != nil {
-		return fmt.Errorf("node start: %w", err)
+	node := x.tailnet.node
+	if node == nil {
+		var err error
+		if node, err = tailnet.NewNode(*cfg); err != nil {
+			return err
+		}
+		if err := node.Start(); err != nil {
+			return fmt.Errorf("node start: %w", err)
+		}
+		x.tailnet.node, x.tailnet.nodeID = node, cfg.Identity()
 	}
 	if _, err := tailnet.AttachNode(context.Background(), inst, tailnet.DefaultTag, node); err != nil {
-		node.Close()
 		return fmt.Errorf("attach outbound: %w", err)
 	}
-	x.tailnet.mu.Lock()
-	x.tailnet.node = node
-	x.tailnet.mu.Unlock()
 	return nil
 }
 
+func (x *CoreController) closeNodeLocked() {
+	if x.tailnet.node != nil {
+		x.tailnet.node.Close()
+		x.tailnet.node, x.tailnet.nodeID = nil, ""
+	}
+}
+
+// stopTailnet releases the node together with the core.
 func (x *CoreController) stopTailnet() {
 	x.tailnet.mu.Lock()
-	node := x.tailnet.node
-	x.tailnet.node = nil
-	x.tailnet.mu.Unlock()
-	if node != nil {
-		node.Close()
+	defer x.tailnet.mu.Unlock()
+	x.closeNodeLocked()
+}
+
+// StopLoopForReload stops the core like StopLoop but leaves the tailnet node running, so the
+// next StartLoop with the same tailnet config reattaches to it. Use it to apply a network
+// change; use StopLoop to really stop.
+func (x *CoreController) StopLoopForReload() error {
+	x.coreMutex.Lock()
+	defer x.coreMutex.Unlock()
+
+	if x.IsRunning {
+		x.shutdownCore()
+		x.CallbackHandler.Shutdown()
+		x.CallbackHandler.OnEmitStatus(0, "Core stopped")
 	}
+	return nil
 }

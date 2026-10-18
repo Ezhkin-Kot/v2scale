@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/netip"
 	"testing"
 
+	"golang.org/x/net/dns/dnsmessage"
 	"tailscale.com/tailcfg"
 )
 
@@ -98,5 +100,99 @@ func TestNameTableWrapRewritesOnlyKnownNames(t *testing.T) {
 		if got[i] != want[i] {
 			t.Errorf("dial %d: got %q, want %q", i, got[i], want[i])
 		}
+	}
+}
+
+// After a network change the node reports an empty DNS config until control reconnects.
+// That must not make the tailnet forget its names.
+func TestNameTableKeepsRecordsWhenConfigGoesEmpty(t *testing.T) {
+	empty := false
+	tbl := newNameTable(nil, func(context.Context) (*tailcfg.DNSConfig, error) {
+		if empty {
+			return &tailcfg.DNSConfig{}, nil
+		}
+		return &tailcfg.DNSConfig{
+			Domains:      []string{"ts.example"},
+			ExtraRecords: []tailcfg.DNSRecord{{Name: "svc.example.net", Type: "A", Value: "100.64.0.2"}},
+		}, nil
+	})
+	ctx := context.Background()
+	if !tbl.isTailnetName(ctx, "svc.example.net") {
+		t.Fatal("record must be known before the config disappears")
+	}
+	empty = true
+	tbl.mu.Lock()
+	tbl.fetched = tbl.fetched.Add(-2 * namesRefresh) // force a reload
+	tbl.mu.Unlock()
+	if !tbl.isTailnetName(ctx, "svc.example.net") || !tbl.isTailnetName(ctx, "peer.ts.example") {
+		t.Error("empty config must not erase known records and domains")
+	}
+	if a, ok := tbl.cached("SVC.example.net."); !ok || a.String() != "100.64.0.2" {
+		t.Errorf("cached: %v %v", a, ok)
+	}
+	if tbl.isTailnetName(ctx, "example.com") {
+		t.Error("unrelated name must stay outside the tailnet")
+	}
+}
+
+func TestSynthesizeAnswer(t *testing.T) {
+	parse := func(raw []byte) dnsmessage.Message {
+		var m dnsmessage.Message
+		if err := m.Unpack(raw); err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	v4 := netip.MustParseAddr("100.64.0.2")
+
+	raw, ok := synthesizeAnswer("svc.example.net.", "A", v4)
+	if !ok {
+		t.Fatal("A must be answerable")
+	}
+	m := parse(raw)
+	if !m.Authoritative || m.RCode != dnsmessage.RCodeSuccess || len(m.Answers) != 1 {
+		t.Fatalf("A answer: %+v", m.Header)
+	}
+	if got := m.Answers[0].Body.(*dnsmessage.AResource).A; got != [4]byte{100, 64, 0, 2} {
+		t.Errorf("address: %v", got)
+	}
+	if !isLocalAnswer(raw) {
+		t.Error("a synthesized answer must count as the node's own zone")
+	}
+
+	raw, ok = synthesizeAnswer("svc.example.net", "AAAA", v4)
+	if !ok || len(parse(raw).Answers) != 0 || parse(raw).RCode != dnsmessage.RCodeSuccess {
+		t.Error("AAAA for an IPv4 name must be an empty NOERROR (NODATA)")
+	}
+
+	raw, ok = synthesizeAnswer("svc.example.net", "AAAA", netip.MustParseAddr("fd7a:115c:a1e0::2"))
+	if !ok || len(parse(raw).Answers) != 1 {
+		t.Error("AAAA for an IPv6 name must carry the address")
+	}
+
+	if _, ok := synthesizeAnswer("svc.example.net", "MX", v4); ok {
+		t.Error("only A and AAAA are synthesized")
+	}
+}
+
+func TestNameTableKeepsEachListWhenOnlyOneGoesEmpty(t *testing.T) {
+	phase := 0
+	tbl := newNameTable(nil, func(context.Context) (*tailcfg.DNSConfig, error) {
+		if phase == 0 {
+			return &tailcfg.DNSConfig{
+				Domains:      []string{"ts.example"},
+				ExtraRecords: []tailcfg.DNSRecord{{Name: "svc.example.net", Type: "A", Value: "100.64.0.2"}},
+			}, nil
+		}
+		return &tailcfg.DNSConfig{Domains: []string{"ts.example"}}, nil // records not delivered yet
+	})
+	ctx := context.Background()
+	tbl.isTailnetName(ctx, "svc.example.net")
+	phase = 1
+	tbl.mu.Lock()
+	tbl.fetched = tbl.fetched.Add(-2 * namesRefresh)
+	tbl.mu.Unlock()
+	if !tbl.isTailnetName(ctx, "svc.example.net") {
+		t.Error("extra records must survive a config that only carries domains")
 	}
 }

@@ -152,6 +152,12 @@ func ReconcileBrowserDialer(dialerAddr string) {
 
 // doShutdown shuts down the Xray instance and cleans up resources
 func (x *CoreController) doShutdown() {
+	x.shutdownCore()
+	x.stopTailnet() // V2Scale
+}
+
+// shutdownCore is doShutdown without touching the tailnet node.
+func (x *CoreController) shutdownCore() {
 	if x.coreInstance != nil {
 		if err := x.coreInstance.Close(); err != nil {
 			log.Printf("core shutdown error: %v", err)
@@ -160,7 +166,6 @@ func (x *CoreController) doShutdown() {
 	}
 	x.IsRunning = false
 	x.statsManager = nil
-	x.stopTailnet() // V2Scale
 }
 
 // doStartLoop sets up and starts the Xray core
@@ -178,6 +183,7 @@ func (x *CoreController) doStartLoop(configContent string) error {
 	if err := x.startTailnet(x.coreInstance); err != nil { // V2Scale
 		x.coreInstance.Close()
 		x.coreInstance = nil
+		x.stopTailnet()
 		return fmt.Errorf("tailnet failed: %w", err)
 	}
 	x.statsManager = x.coreInstance.GetFeature(corestats.ManagerType()).(corestats.Manager)

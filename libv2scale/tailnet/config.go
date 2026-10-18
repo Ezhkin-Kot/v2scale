@@ -33,6 +33,16 @@ type Config struct {
 	Logf      logger.Logf    `json:"-"`
 }
 
+// Identity names the node this config describes. The auth key is left out on purpose: it is
+// erased once the node has registered, and that must not look like a different node.
+func (c *Config) Identity() string {
+	b, _ := json.Marshal(struct {
+		ControlURL, Hostname, StateDir, ControlProxy string
+		Hosts                                        map[string]string
+	}{c.ControlURL, c.Hostname, c.StateDir, c.ControlProxy, c.Hosts})
+	return string(b)
+}
+
 // ParseConfig decodes and validates a JSON config. Unknown fields are errors so that
 // typos do not silently disable a setting.
 func ParseConfig(data string) (*Config, error) {

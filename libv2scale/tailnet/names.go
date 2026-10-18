@@ -72,11 +72,24 @@ func (t *nameTable) refreshLocked(ctx context.Context, force bool) {
 			m[normalizeName(r.Name)] = ip
 		}
 	}
-	t.extra, t.fetched = m, time.Now()
-	t.domains = t.domains[:0]
+	var domains []string
 	for _, d := range dc.Domains {
-		t.domains = append(t.domains, normalizeName(d))
+		domains = append(domains, normalizeName(d))
 	}
+	// Right after a network change the node reports a DNS config with parts missing until
+	// control reconnects. An empty list therefore means "unknown", not "removed": forgetting
+	// known records and domains would make tailnet names unresolvable for as long as that takes.
+	// fetched is only advanced for a config that carries something, so we ask again soon.
+	if len(m) == 0 && len(domains) == 0 {
+		return
+	}
+	if len(m) > 0 || len(t.extra) == 0 {
+		t.extra = m
+	}
+	if len(domains) > 0 || len(t.domains) == 0 {
+		t.domains = domains
+	}
+	t.fetched = time.Now()
 }
 
 func (t *nameTable) lookup(ctx context.Context, host string) (netip.Addr, bool) {
@@ -96,6 +109,19 @@ func (t *nameTable) lookup(ctx context.Context, host string) (netip.Addr, bool) 
 		a, hit = t.extra[host]
 	}
 	return a, hit
+}
+
+// cached returns a name's address from the static hosts or the last known extra records,
+// without asking the node.
+func (t *nameTable) cached(name string) (netip.Addr, bool) {
+	name = normalizeName(name)
+	if a, ok := t.static[name]; ok {
+		return a, true
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	a, ok := t.extra[name]
+	return a, ok
 }
 
 // isTailnetName reports whether name is something the tailnet itself should answer.

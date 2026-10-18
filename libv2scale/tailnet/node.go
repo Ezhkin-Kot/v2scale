@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"golang.org/x/net/dns/dnsmessage"
 	"net"
 	"net/netip"
 	"net/url"
@@ -142,6 +143,16 @@ func (n *Node) QueryDNS(ctx context.Context, name, qtype string) ([]byte, error)
 		return nil, err
 	}
 	raw, _, err := lc.QueryDNS(ctx, name, qtype)
+	if err != nil || !isLocalAnswer(raw) {
+		// The node's resolver is not ready (after a network change its DNS config is gone until
+		// control reconnects, and it would forward the name upstream). Known extra records and
+		// static hosts can still be answered from what we last learned.
+		if a, ok := names.cached(name); ok {
+			if resp, ok := synthesizeAnswer(name, qtype, a); ok {
+				return resp, nil
+			}
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -153,6 +164,37 @@ func (n *Node) QueryDNS(ctx context.Context, name, qtype string) ([]byte, error)
 		return nil, fmt.Errorf("tailnet: %q was not answered by the node's own zone", name)
 	}
 	return raw, nil
+}
+
+// synthesizeAnswer builds an authoritative A or AAAA response for a known address. A name of
+// the other family gets an empty (NODATA) answer, the name exists. Other types are not handled.
+func synthesizeAnswer(name, qtype string, addr netip.Addr) ([]byte, bool) {
+	if qtype != "A" && qtype != "AAAA" {
+		return nil, false
+	}
+	n, err := dnsmessage.NewName(strings.TrimSuffix(name, ".") + ".")
+	if err != nil {
+		return nil, false
+	}
+	t := dnsmessage.TypeA
+	if qtype == "AAAA" {
+		t = dnsmessage.TypeAAAA
+	}
+	q := dnsmessage.Question{Name: n, Type: t, Class: dnsmessage.ClassINET}
+	b := dnsmessage.NewBuilder(nil, dnsmessage.Header{Response: true, Authoritative: true, RecursionAvailable: true})
+	if b.StartQuestions() != nil || b.Question(q) != nil || b.StartAnswers() != nil {
+		return nil, false
+	}
+	hdr := dnsmessage.ResourceHeader{Name: n, Class: dnsmessage.ClassINET, TTL: 30}
+	addr = addr.Unmap()
+	switch {
+	case t == dnsmessage.TypeA && addr.Is4():
+		b.AResource(hdr, dnsmessage.AResource{A: addr.As4()})
+	case t == dnsmessage.TypeAAAA && addr.Is6():
+		b.AAAAResource(hdr, dnsmessage.AAAAResource{AAAA: addr.As16()})
+	}
+	out, err := b.Finish()
+	return out, err == nil
 }
 
 // isLocalAnswer reports whether a DNS response comes from the node's own zone: Tailscale
