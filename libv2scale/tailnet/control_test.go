@@ -89,3 +89,49 @@ func TestControlWatchFollowsReachabilityAndStopsWhenRunning(t *testing.T) {
 	cancel()
 	<-done
 }
+
+// A probe that merely times out (a slow i2p tunnel) is "slow", and only a run of timeouts, or a
+// definite failure, is "unreachable".
+func TestControlWatchTreatsTimeoutsAsSlowFirst(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		// seen[i] is the state published after probe i+1 failed.
+		seen []ControlState
+	}{
+		{"timeouts", context.DeadlineExceeded, []ControlState{ControlSlow, ControlSlow, ControlUnreachable, ControlUnreachable}},
+		{"refused", errors.New("dial tcp 127.0.0.1:1: connect: connection refused"), []ControlState{ControlUnreachable, ControlUnreachable}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var w controlWatch
+			var got []ControlState
+			ctx, cancel := context.WithCancel(context.Background())
+			done := make(chan struct{})
+			probe := func(context.Context) error {
+				// The state published by the previous round is visible when the next one starts.
+				if len(got) > 0 || w.state != "" {
+					s, _ := w.get()
+					got = append(got, s)
+				} else {
+					got = append(got, "")
+				}
+				if len(got) == len(c.seen)+1 {
+					cancel()
+				}
+				return c.err
+			}
+			go func() {
+				defer close(done)
+				w.run(ctx, time.Millisecond, time.Millisecond, probe, func() bool { return false })
+			}()
+			<-done
+			// got[0] is the state before any probe (unset), got[i] the state after probe i.
+			for i, want := range c.seen {
+				if got[i+1] != want {
+					t.Errorf("after probe %d: %q, want %q (all: %v)", i+1, got[i+1], want, got)
+				}
+			}
+		})
+	}
+}

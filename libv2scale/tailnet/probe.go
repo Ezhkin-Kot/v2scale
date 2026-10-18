@@ -24,6 +24,7 @@ type TestResult struct {
 
 const (
 	testTimeout    = 10 * time.Second
+	waitForNode    = 60 * time.Second
 	perPingTimeout = 3 * time.Second
 	maxPingPeers   = 3
 )
@@ -32,20 +33,44 @@ const (
 // exactly like routed traffic would, which also exercises name resolution and ACLs. Without one it
 // pings the first online peer at the WireGuard layer, which shows reachability and whether the
 // path is direct or relayed but says nothing about ACLs.
+//
+// A node that is still connecting is waited for (up to waitForNode) instead of failing the test:
+// right after the VPN starts, getting the network map can take a minute on a slow control path.
 func (n *Node) Test(ctx context.Context, target string) TestResult {
-	ctx, cancel := context.WithTimeout(ctx, testTimeout)
-	defer cancel()
-
-	st := n.Status(ctx)
+	st := n.waitRunning(ctx, waitForNode)
 	res := TestResult{State: st.State}
 	if st.State != "running" {
-		res.Error = "node is " + st.State
+		res.Error = notReadyMessage(st.State)
+		if c, e := n.Control(); c == ControlUnreachable {
+			res.Error += ", control server unreachable (" + e + ")"
+		}
 		return res
 	}
+	ctx, cancel := context.WithTimeout(ctx, testTimeout)
+	defer cancel()
 	if target != "" {
 		return n.testDial(ctx, target, res)
 	}
 	return n.testPing(ctx, res)
+}
+
+// waitRunning returns the node status once it is running, or the last status after limit. A node that
+// was never started is not waited for.
+func (n *Node) waitRunning(ctx context.Context, limit time.Duration) Status {
+	deadline := time.Now().Add(limit)
+	for {
+		sctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		st := n.Status(sctx)
+		cancel()
+		if st.State == "running" || st.State == "stopped" || time.Now().After(deadline) || ctx.Err() != nil {
+			return st
+		}
+		select {
+		case <-ctx.Done():
+			return st
+		case <-time.After(500 * time.Millisecond):
+		}
+	}
 }
 
 func (n *Node) testDial(ctx context.Context, target string, res TestResult) TestResult {
@@ -130,4 +155,17 @@ func (n *Node) testPing(ctx context.Context, res TestResult) TestResult {
 	}
 	res.Error = fmt.Sprintf("no peer answered (%s)", lastErr)
 	return res
+}
+
+// notReadyMessage explains why the node is not usable in words a user can act on. The raw backend
+// states ("nostate", "starting") say nothing to them.
+func notReadyMessage(state string) string {
+	switch state {
+	case "stopped":
+		return "the node is not running"
+	case "needs-login":
+		return "login is required"
+	default:
+		return "the node is still connecting"
+	}
 }

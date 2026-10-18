@@ -2,6 +2,8 @@ package tailnet
 
 import (
 	"context"
+	"errors"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -17,7 +19,11 @@ const (
 	ControlUnknown ControlState = "unknown"
 	// ControlOK: the control server answered an HTTP request.
 	ControlOK ControlState = "ok"
-	// ControlUnreachable: the last probe failed (no route, refused, timeout).
+	// ControlSlow: probes time out. A slow path (i2p tunnels still being built, a loaded proxy) looks
+	// like this for a while and then works, so it must not be reported as a failure yet.
+	ControlSlow ControlState = "slow"
+	// ControlUnreachable: the last probe failed outright (no route, refused, DNS), or probes kept
+	// timing out for controlSlowLimit rounds in a row.
 	ControlUnreachable ControlState = "unreachable"
 )
 
@@ -25,6 +31,8 @@ const (
 	controlProbeInterval = 5 * time.Second
 	controlProbeTimeout  = 15 * time.Second
 	controlRunningPause  = 15 * time.Second
+	// controlSlowLimit is how many timeouts in a row still count as "slow" before they count as down.
+	controlSlowLimit = 3
 )
 
 // controlWatch probes the control server in the background while the node is not yet running.
@@ -56,17 +64,29 @@ func (w *controlWatch) get() (ControlState, string) {
 // run probes every interval until ctx ends. While running() is true the node has the netmap and
 // control is by definition fine, so nothing is probed.
 func (w *controlWatch) run(ctx context.Context, interval, pause time.Duration, probe func(context.Context) error, running func() bool) {
+	timeouts := 0
 	for {
 		wait := interval
 		if running() {
+			timeouts = 0
 			w.set(ControlOK, "")
 			wait = pause
 		} else if err := probe(ctx); err != nil {
 			if ctx.Err() != nil {
 				return
 			}
-			w.set(ControlUnreachable, err.Error())
+			if isTimeout(err) {
+				timeouts++
+			} else {
+				timeouts = controlSlowLimit // refused, no route, DNS failure: a definite answer
+			}
+			if timeouts >= controlSlowLimit {
+				w.set(ControlUnreachable, err.Error())
+			} else {
+				w.set(ControlSlow, err.Error())
+			}
 		} else {
+			timeouts = 0
 			w.set(ControlOK, "")
 		}
 		select {
@@ -132,6 +152,11 @@ func probeControl(ctx context.Context, controlURL, proxy string) error {
 	}
 	resp.Body.Close()
 	return nil
+}
+
+func isTimeout(err error) bool {
+	var ne net.Error
+	return errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout())
 }
 
 // shortErr drops the URL that net/http puts in front of the cause, it is already known to the user.

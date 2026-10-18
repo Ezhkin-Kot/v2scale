@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"tailscale.com/ipn/store/mem"
+
 	"v2scale/libv2scale/internal/testenv"
 )
 
@@ -46,5 +48,28 @@ func TestNodeTestBeforeStart(t *testing.T) {
 	}
 	if res := n.Test(context.Background(), ""); res.OK || res.State != "stopped" || res.Error == "" {
 		t.Errorf("not started: %+v", res)
+	}
+}
+
+// The test must wait for a node that is still connecting instead of reporting it as failed.
+func TestNodeTestWaitsForTheNodeToComeUp(t *testing.T) {
+	controlURL, _ := testenv.StartControl(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	server, serverIP := testenv.StartNode(t, ctx, controlURL, "echo")
+	testenv.ServeEcho(t, server, "7")
+
+	n, err := NewNode(Config{ControlURL: controlURL, Hostname: "phone", StateDir: t.TempDir(), Store: new(mem.Store), Ephemeral: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { n.Close() })
+	if err := n.Start(); err != nil {
+		t.Fatal(err)
+	}
+	// No WaitUp: the node is still starting when the test begins.
+	res := n.Test(ctx, net.JoinHostPort(serverIP.String(), "7"))
+	if !res.OK || res.State != "running" {
+		t.Fatalf("a starting node must be waited for: %+v", res)
 	}
 }
