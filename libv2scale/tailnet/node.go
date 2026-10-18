@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"golang.org/x/net/dns/dnsmessage"
 	"net"
 	"net/netip"
 	"net/url"
@@ -12,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/dns/dnsmessage"
 	"tailscale.com/tailcfg"
 	"tailscale.com/tsnet"
 )
@@ -33,6 +33,7 @@ type Node struct {
 	mu    sync.Mutex
 	srv   *tsnet.Server
 	names *nameTable
+	ctrl  controlWatch
 }
 
 // NewNode validates cfg and returns a stopped node.
@@ -77,6 +78,7 @@ func (n *Node) Start() error {
 		return err
 	}
 	n.srv = s
+	n.startControlWatch()
 	n.names = newNameTable(n.cfg.Hosts, func(ctx context.Context) (*tailcfg.DNSConfig, error) {
 		lc, err := s.LocalClient()
 		if err != nil {
@@ -247,6 +249,7 @@ func (n *Node) Status(ctx context.Context) Status {
 
 // Close stops the node. A closed Node cannot be started again; create a new one.
 func (n *Node) Close() error {
+	n.ctrl.stop()
 	n.mu.Lock()
 	s := n.srv
 	n.srv = nil

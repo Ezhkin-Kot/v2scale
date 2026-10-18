@@ -43,7 +43,9 @@ func (x *CoreController) SetTailnetConfig(configJSON string) error {
 }
 
 // TailnetStatus returns the node state as JSON:
-// {"state":"stopped|starting|needs-login|running|...","auth_url":"...","ips":["100.64.0.2"]}.
+// {"state":"stopped|starting|needs-login|running|...","auth_url":"...","ips":["100.64.0.2"],
+// "control":"unknown|ok|unreachable","control_error":"..."}.
+// control says whether the control server answers while the node is not running yet.
 func (x *CoreController) TailnetStatus() string {
 	x.tailnet.mu.Lock()
 	node := x.tailnet.node
@@ -53,7 +55,9 @@ func (x *CoreController) TailnetStatus() string {
 		State   string   `json:"state"`
 		AuthURL string   `json:"auth_url"`
 		IPs     []string `json:"ips"`
-	}{State: "stopped", IPs: []string{}}
+		Control string   `json:"control"`
+		CtlErr  string   `json:"control_error,omitempty"`
+	}{State: "stopped", IPs: []string{}, Control: string(tailnet.ControlUnknown)}
 	if node != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
@@ -62,6 +66,8 @@ func (x *CoreController) TailnetStatus() string {
 		for _, ip := range st.IPs {
 			out.IPs = append(out.IPs, ip.String())
 		}
+		c, e := node.Control()
+		out.Control, out.CtlErr = string(c), e
 	}
 	b, _ := json.Marshal(out)
 	return string(b)

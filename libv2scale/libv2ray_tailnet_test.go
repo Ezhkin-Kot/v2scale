@@ -240,3 +240,30 @@ func TestTailnetTestWithoutNode(t *testing.T) {
 		t.Errorf("no node: %+v", res)
 	}
 }
+
+func TestTailnetStatusReportsControlReachability(t *testing.T) {
+	x := NewCoreController(testHandler{})
+	var st struct {
+		Control string `json:"control"`
+	}
+	if err := json.Unmarshal([]byte(x.TailnetStatus()), &st); err != nil || st.Control != "unknown" {
+		t.Fatalf("no node: %+v %v", st, err)
+	}
+
+	controlURL, _ := testenv.StartControl(t)
+	if err := x.SetTailnetConfig(`{"control_url":"` + controlURL + `","state_dir":"` + t.TempDir() + `","hostname":"phone"}`); err != nil {
+		t.Fatal(err)
+	}
+	if err := x.StartLoop(xrayConfig(freePort(t)), 0); err != nil {
+		t.Fatal(err)
+	}
+	defer x.StopLoop()
+	waitRunning(t, x)
+	deadline := time.Now().Add(10 * time.Second)
+	for ; time.Now().Before(deadline); time.Sleep(100 * time.Millisecond) {
+		if json.Unmarshal([]byte(x.TailnetStatus()), &st); st.Control == "ok" {
+			return
+		}
+	}
+	t.Errorf("a running node must report its control server as ok, got %q", st.Control)
+}
