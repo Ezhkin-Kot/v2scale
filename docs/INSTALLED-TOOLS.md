@@ -14,7 +14,16 @@
 
 | Что | Откуда | Где лежит | Удаление |
 | --- | ------ | --------- | -------- |
-| (пока ничего) | | | |
+| `openjdk@21` (JDK 21, для Gradle/AGP 9.4.1, как в CI) | brew formula | `/opt/homebrew/opt/openjdk@21` | `brew uninstall openjdk@21` |
+| Android SDK Platform 37.0, Build-Tools 37.0.0 | `sdkmanager` | `/opt/homebrew/share/android-commandlinetools/{platforms/android-37.0,build-tools/37.0.0}` | `sdkmanager --uninstall "platforms;android-37.0" "build-tools;37.0.0"` |
+| NDK 30.0.16248370 (~2 ГБ, нужен для `libhev*`, версия из CI upstream) | `sdkmanager` | `/opt/homebrew/share/android-commandlinetools/ndk/30.0.16248370` | `sdkmanager --uninstall "ndk;30.0.16248370"` |
+
+Лицензии Android SDK приняты (`sdkmanager --licenses`) при установке. Каталог SDK целиком
+(~6.2 ГБ с прежними пакетами) удаляется командой `brew uninstall --cask android-commandlinetools`
+и `rm -rf /opt/homebrew/share/android-commandlinetools`.
+
+Побочно появляются и могут быть удалены: `~/.gradle` (кэш Gradle и зависимостей),
+`~/.android`, кэш модулей Go `~/go/pkg/mod`.
 
 ## Файлы и каталоги проекта вне репозитория
 

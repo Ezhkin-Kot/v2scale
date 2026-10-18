@@ -72,3 +72,7 @@ Thumbs.db
 libv2scale/assets/*.dat
 libv2scale/*.aar
 libv2scale/*-sources.jar
+
+# Local build outputs
+/libs/
+.compile-hevtun.dev.sh
