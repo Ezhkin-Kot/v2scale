@@ -225,3 +225,18 @@ func TestCoreControllerWithoutTailnet(t *testing.T) {
 		t.Errorf("traffic for the tailnet tag must fail without a tailnet, got %q", got)
 	}
 }
+
+func TestTailnetTestWithoutNode(t *testing.T) {
+	x := NewCoreController(testHandler{})
+	var res struct {
+		OK    bool   `json:"ok"`
+		State string `json:"state"`
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(x.TailnetTest("")), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res.OK || res.State != "stopped" || res.Error == "" {
+		t.Errorf("no node: %+v", res)
+	}
+}

@@ -67,6 +67,21 @@ func (x *CoreController) TailnetStatus() string {
 	return string(b)
 }
 
+// TailnetTest checks the running node and returns the result as JSON, see tailnet.TestResult.
+// target is an optional "host:port" dialed through the tailnet; empty pings an online peer.
+func (x *CoreController) TailnetTest(target string) string {
+	x.tailnet.mu.Lock()
+	node := x.tailnet.node
+	x.tailnet.mu.Unlock()
+
+	res := tailnet.TestResult{State: "stopped", Error: "tailnet is not running"}
+	if node != nil {
+		res = node.Test(context.Background(), strings.TrimSpace(target))
+	}
+	b, _ := json.Marshal(res)
+	return string(b)
+}
+
 // startTailnet attaches the "tailnet" outbound to inst before the core starts. A node that is
 // already running for the same config is reused (a core reload keeps it), otherwise it is
 // brought up in the background. It closes a leftover node when tailnet is no longer configured.
