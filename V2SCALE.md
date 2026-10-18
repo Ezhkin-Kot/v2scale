@@ -22,6 +22,7 @@ Nextcloud, Calino (CalDAV) и Fluidd проверены. Дальше: режи�
 | Файл | Содержание |
 | ---- | ---------- |
 | [docs/SETUP.md](docs/SETUP.md) | Установка и настройка с нуля: Headscale, ACL, сборка, приложение, типичные проблемы |
+| [docs/SECURITY.md](docs/SECURITY.md) | Модель угроз, что проверено, ограничения, как проверить самому |
 | [docs/PLAN.md](docs/PLAN.md) | Пошаговый план по фазам, критерии готовности, что изучить |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Целевая архитектура и потоки данных |
 | [docs/RESEARCH.md](docs/RESEARCH.md) | Что выяснено по исходникам V2RayNG, Xray-core и Tailscale (с путями к файлам) |
