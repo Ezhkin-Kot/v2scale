@@ -22,21 +22,21 @@
 
 Цель: собрать неизменённый V2RayNG 2.3.12 из исходников на этом Mac и запустить на Nothing Phone (3).
 
-- [ ] 0.1 Установить недостающее: JDK 21, Android SDK `platforms;android-37.0`,
+- [x] 0.1 Установить недостающее: JDK 21, Android SDK `platforms;android-37.0`,
   `build-tools;37.0.0`, NDK `30.0.16248370` (SDK-инструменты командной строки и `gomobile` уже
   есть). Записать в INSTALLED-TOOLS.md.
-- [ ] 0.2 Собрать `libhev*` (`compile-hevtun.sh`, нужен `NDK_HOME`) только для `arm64-v8a`
+- [x] 0.2 Собрать `libhev*` (`compile-hevtun.sh`, нужен `NDK_HOME`) только для `arm64-v8a`
   (для разработки хватает одной архитектуры; полный набор ABI добавим в Фазе 7).
-- [ ] 0.3 Собрать `libv2ray.aar` из `libv2scale/` (`gen_assets.sh` скачивает geo-данные,
+- [x] 0.3 Собрать `libv2ray.aar` из `libv2scale/` (`gen_assets.sh` скачивает geo-данные,
   `gomobile bind -androidapi 24 -trimpath -ldflags='-s -w -buildid= -checklinkname=0'`),
   положить в `V2rayNG/app/libs/`.
-- [ ] 0.4 Собрать APK (`./gradlew assembleFdroidDebug` или `assemblePlaystoreDebug`, выбрать
+- [x] 0.4 Собрать APK (`./gradlew assembleFdroidDebug` или `assemblePlaystoreDebug`, выбрать
   вариант без Google-сервисов), подписать debug-ключом.
-- [ ] 0.5 Заменить `applicationId`/название (временно `org.v2scale.android`, "V2Scale"), чтобы
+- [x] 0.5 Заменить `applicationId`/название (временно `org.v2scale.android`, "V2Scale"), чтобы
   ставить рядом с V2RayNG. Проверить, что `applicationIdSuffix` flavors не ломает проект.
 - [ ] 0.6 Установить на телефон, импортировать профиль (подписку 3x-ui), включить VPN, убедиться
   в обычной работе.
-- [ ] 0.7 Скрипты `scripts/build-core.sh`, `scripts/build-app.sh` для повторяемой сборки одной
+- [x] 0.7 Скрипты `scripts/build-core.sh`, `scripts/build-app.sh` для повторяемой сборки одной
   командой; описать в DEVLOG.md.
 
 Критерий: `scripts/build-app.sh` из чистого клона даёт APK, который ведёт себя как V2RayNG.

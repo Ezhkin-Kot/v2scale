@@ -19,6 +19,19 @@
 - Собрано: `libhev-socks5-tunnel.so`, `libhevsockstun.so` (arm64), `libv2ray.aar` (20 МБ,
   arm64, 44 с сборки ядра).
 
+- Gradle: `scripts/build-app.sh` собирает `assemblePlaystoreDebug` для arm64-v8a: первая сборка
+  4 мин 10 с (скачивание зависимостей и Gradle 9.8.1), повторная ~20 с. Предупреждение
+  «Unable to strip libraries» безобидно (APK чуть больше; NDK можно прописать в `ndkVersion`,
+  как делает CI upstream, когда понадобится).
+- Переименование для установки рядом с V2RayNG (три маленьких коммита): `applicationId =
+  org.v2scale.android` (`namespace` остался `com.v2ray.ang`, чтобы не трогать пакеты Kotlin);
+  `Utils.isXray()` обобщена (раньше проверяла префикс `com.v2ray.ang` и при другом id
+  переключила бы ядро на ветку v2fly); `shortcuts.xml` указывает на новый пакет;
+  `app_name` заменён на «V2Scale» во всех 10 локализациях (иначе локаль перекроет значение).
+  Проверено `aapt2 dump badging`: пакет `org.v2scale.android`, метка V2Scale, arm64-v8a.
+- Осталось по Фазе 0: пункт 0.6 - установка на телефон и проверка работы (нужна ваша помощь:
+  подтвердить отладку по USB и импортировать профиль).
+
 ## 2026-10-18 - GitHub-fork и ветки
 
 - Репозиторий на GitHub пересоздан как настоящий fork `2dust/v2rayNG` (`Ezhkin-Kot/v2scale`,
