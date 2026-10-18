@@ -2,79 +2,25 @@ package tailnet
 
 import (
 	"context"
-	"io"
 	"net"
-	"net/http/httptest"
 	"net/netip"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/xtls/xray-core/features/policy"
-	"tailscale.com/ipn/store/mem"
-	"tailscale.com/net/netns"
-	"tailscale.com/tailcfg"
 	"tailscale.com/tsnet"
-	"tailscale.com/tstest/integration"
 	"tailscale.com/tstest/integration/testcontrol"
-	"tailscale.com/types/logger"
+	"v2scale/libv2scale/internal/testenv"
 )
 
-// startControl runs a hermetic Tailscale control server with a local DERP/STUN, so the
-// tests need no network access and no real tailnet.
-func startControl(t *testing.T) (string, *testcontrol.Server) {
-	t.Helper()
-	netns.SetEnabled(false) // the host may run its own Tailscale
-	t.Cleanup(func() { netns.SetEnabled(true) })
-
-	derpMap := integration.RunDERPAndSTUN(t, logger.Discard, "127.0.0.1")
-	control := &testcontrol.Server{
-		DERPMap:        derpMap,
-		DNSConfig:      &tailcfg.DNSConfig{Proxied: true, Domains: []string{"tail-scale.ts.net"}},
-		MagicDNSDomain: "tail-scale.ts.net",
-		Logf:           t.Logf,
-	}
-	control.HTTPTestServer = httptest.NewUnstartedServer(control)
-	control.HTTPTestServer.Start()
-	t.Cleanup(control.HTTPTestServer.Close)
-	return control.HTTPTestServer.URL, control
-}
+// Thin wrappers around the shared hermetic environment (see internal/testenv).
+func startControl(t *testing.T) (string, *testcontrol.Server) { return testenv.StartControl(t) }
 
 func startNode(t *testing.T, ctx context.Context, controlURL, name string) (*tsnet.Server, netip.Addr) {
-	t.Helper()
-	dir := filepath.Join(t.TempDir(), name)
-	s := &tsnet.Server{
-		Dir:        dir,
-		ControlURL: controlURL,
-		Hostname:   name,
-		Store:      new(mem.Store),
-		Ephemeral:  true,
-	}
-	t.Cleanup(func() { s.Close() })
-	st, err := s.Up(ctx)
-	if err != nil {
-		t.Fatalf("node %s did not come up: %v", name, err)
-	}
-	return s, st.TailscaleIPs[0]
+	return testenv.StartNode(t, ctx, controlURL, name)
 }
 
-func serveEcho(t *testing.T, s *tsnet.Server, port string) {
-	t.Helper()
-	ln, err := s.Listen("tcp", ":"+port)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { ln.Close() })
-	go func() {
-		for {
-			c, err := ln.Accept()
-			if err != nil {
-				return
-			}
-			go func() { defer c.Close(); io.Copy(c, c) }()
-		}
-	}()
-}
+func serveEcho(t *testing.T, s *tsnet.Server, port string) { testenv.ServeEcho(t, s, port) }
 
 const tsRules = `{"type":"field","ip":["100.64.0.0/10"],"outboundTag":"tailnet"},
                  {"type":"field","domain":["domain:tail-scale.ts.net"],"outboundTag":"tailnet"}`

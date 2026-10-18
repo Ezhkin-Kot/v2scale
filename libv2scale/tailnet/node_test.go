@@ -143,3 +143,78 @@ func TestNodeResolvesExtraRecordsAndStaticHosts(t *testing.T) {
 		}
 	})
 }
+
+func waitState(t *testing.T, ctx context.Context, n *Node, want string, within time.Duration) Status {
+	t.Helper()
+	deadline := time.Now().Add(within)
+	var st Status
+	for time.Now().Before(deadline) {
+		if st = n.Status(ctx); st.State == want {
+			return st
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatalf("state %q not reached within %v, last status: %+v", want, within, st)
+	return st
+}
+
+// Without an auth key the node waits for interactive login and reports the link so the
+// app can show it; after the control server completes it, the node comes up.
+func TestNodeInteractiveLogin(t *testing.T) {
+	controlURL, control := startControl(t)
+	control.RequireAuth = true
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	n, err := NewNode(Config{ControlURL: controlURL, Hostname: "login", StateDir: t.TempDir(), Store: new(mem.Store), Ephemeral: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { n.Close() })
+	if err := n.Start(); err != nil {
+		t.Fatal(err)
+	}
+	st := waitState(t, ctx, n, "needs-login", 15*time.Second)
+	if st.AuthURL == "" {
+		t.Fatal("needs-login without a login link")
+	}
+	if !control.CompleteAuth(st.AuthURL) {
+		t.Fatalf("control did not recognise the auth URL %q", st.AuthURL)
+	}
+	if err := n.WaitUp(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if st := n.Status(ctx); st.State != "running" || len(st.IPs) == 0 {
+		t.Errorf("after login: %+v", st)
+	}
+}
+
+// A pre-auth key registers the node without interaction; a wrong key does not.
+func TestNodeAuthKey(t *testing.T) {
+	controlURL, control := startControl(t)
+	control.RequireAuthKey = "tskey-secret"
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	mk := func(name, key string) *Node {
+		n, err := NewNode(Config{ControlURL: controlURL, AuthKey: key, Hostname: name, StateDir: t.TempDir(), Store: new(mem.Store), Ephemeral: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { n.Close() })
+		if err := n.Start(); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+
+	good := mk("good", "tskey-secret")
+	if err := good.WaitUp(ctx); err != nil {
+		t.Fatalf("valid key: %v", err)
+	}
+	bad := mk("bad", "tskey-wrong")
+	time.Sleep(3 * time.Second)
+	if st := bad.Status(ctx); st.State == "running" {
+		t.Errorf("a wrong key must not register the node: %+v", st)
+	}
+}

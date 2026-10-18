@@ -38,6 +38,9 @@ type CoreController struct {
 	coreMutex       sync.Mutex
 	coreInstance    *core.Instance
 	IsRunning       bool
+
+	// V2Scale: embedded tailnet node (see libv2ray_tailnet.go).
+	tailnet tailnetState
 }
 
 // CoreCallbackHandler defines interface for receiving callbacks and notifications from the core service
@@ -157,6 +160,7 @@ func (x *CoreController) doShutdown() {
 	}
 	x.IsRunning = false
 	x.statsManager = nil
+	x.stopTailnet() // V2Scale
 }
 
 // doStartLoop sets up and starts the Xray core
@@ -170,6 +174,11 @@ func (x *CoreController) doStartLoop(configContent string) error {
 	x.coreInstance, err = core.New(config)
 	if err != nil {
 		return fmt.Errorf("core init failed: %w", err)
+	}
+	if err := x.startTailnet(x.coreInstance); err != nil { // V2Scale
+		x.coreInstance.Close()
+		x.coreInstance = nil
+		return fmt.Errorf("tailnet failed: %w", err)
 	}
 	x.statsManager = x.coreInstance.GetFeature(corestats.ManagerType()).(corestats.Manager)
 
