@@ -83,5 +83,16 @@ object TailnetConfigBuilder {
         return DnsSpec(MAGIC_DNS_ADDRESS, domains)
     }
 
+    /**
+     * Android sends DNS-over-TLS (port 853) straight to the VPN's DNS address, past the core's DNS
+     * module, so tailnet names would never be asked for. Dropping that traffic makes Private DNS
+     * validation fail and Android falls back to plain DNS, which the core does intercept.
+     * Needed only while the core has to answer tailnet names; a strict Private DNS hostname set by
+     * the user stays unresolvable, which is the documented limit.
+     */
+    fun blocksDnsOverTls(s: TailnetSettings): Boolean = dnsServer(s) != null
+
+    const val DOT_PORT = "853"
+
     data class DnsSpec(val address: String, val domains: List<String>)
 }

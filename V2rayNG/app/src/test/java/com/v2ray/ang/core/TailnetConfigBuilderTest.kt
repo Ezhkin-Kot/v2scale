@@ -84,4 +84,11 @@ class TailnetConfigBuilderTest {
         assertEquals("100.100.100.100", dns.address)
         assertEquals(listOf("domain:example.net"), dns.domains)
     }
+
+    @Test
+    fun blocksDnsOverTlsOnlyWhenTheCoreAnswersTailnetNames() {
+        assertFalse(TailnetConfigBuilder.blocksDnsOverTls(base))
+        assertFalse(TailnetConfigBuilder.blocksDnsOverTls(base.copy(domains = listOf("example.net"), magicDns = false)))
+        assertTrue(TailnetConfigBuilder.blocksDnsOverTls(base.copy(domains = listOf("example.net"))))
+    }
 }

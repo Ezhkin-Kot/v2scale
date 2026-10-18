@@ -653,6 +653,16 @@ object CoreConfigManager {
                 )
             )
         }
+        if (TailnetConfigBuilder.blocksDnsOverTls(settings) && SettingsManager.isVpnMode()) {
+            v2rayConfig.routing.rules.add(
+                0,
+                V2rayConfig.RoutingBean.RulesBean(
+                    network = "tcp",
+                    port = TailnetConfigBuilder.DOT_PORT,
+                    outboundTag = AppConfig.TAG_BLOCKED,
+                )
+            )
+        }
         TailnetConfigBuilder.dnsServer(settings)?.let {
             v2rayConfig.dns?.servers?.add(
                 0,

@@ -118,8 +118,10 @@ func (h *Handler) answerDNS(ctx context.Context, query []byte) []byte {
 	raw, err := h.dns.QueryDNS(ctx, q.Name.String(), qtype)
 	switch {
 	case errors.Is(err, ErrNotTailnetName):
+		xerrors.LogInfo(ctx, "tailnet dns: ", q.Name.String(), " ", qtype, " is not a tailnet name")
 		return dnsErrorReply(hdr, &q, dnsmessage.RCodeRefused)
 	case err != nil || len(raw) < 12:
+		xerrors.LogWarning(ctx, "tailnet dns: query ", q.Name.String(), " ", qtype, " failed: ", err)
 		return dnsErrorReply(hdr, &q, dnsmessage.RCodeServerFailure)
 	}
 	// Reuse the node's answer but speak as the resolver the client asked.
