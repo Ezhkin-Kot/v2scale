@@ -11,6 +11,8 @@ sealed interface MainTailnet {
     data object NeedsLogin : MainTailnet
     /** Waiting for the node, and the control server does not answer: [error] says how it failed. */
     data class ControlUnreachable(val error: String) : MainTailnet
+    /** Waiting for the node and control answers slowly; not an error yet. */
+    data object ControlSlow : MainTailnet
     data class Ready(val ips: List<String>) : MainTailnet
     data object Testing : MainTailnet
     data class Tested(val result: TailnetTestResult) : MainTailnet
@@ -35,6 +37,7 @@ fun mainTailnetOf(isRunning: Boolean, snapshot: TailnetSnapshot, test: TailnetTe
             snapshot.status.isRunning -> MainTailnet.Ready(snapshot.status.ips)
             snapshot.status.needsLogin -> MainTailnet.NeedsLogin
             snapshot.status.controlUnreachable -> MainTailnet.ControlUnreachable(snapshot.status.controlError)
+            snapshot.status.controlSlow -> MainTailnet.ControlSlow
             else -> MainTailnet.Connecting
         }
     }

@@ -609,4 +609,6 @@
     <string name="tailnet_path_tcp">соединение</string>
     <string name="tailnet_main_control_down">Tailnet: сервер управления недоступен (%1$s)</string>
     <string name="tailnet_status_control_down">Подключение… сервер управления недоступен (%1$s). Проверьте адрес, прокси или i2pd.</string>
+    <string name="tailnet_main_control_slow">Tailnet: подключение… сервер управления отвечает медленно</string>
+    <string name="tailnet_status_control_slow">Подключение… сервер управления отвечает медленно, через i2pd или прокси это может занять минуту.</string>
 </resources>

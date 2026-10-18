@@ -53,6 +53,10 @@ class TailnetStatusTest {
         assertTrue(s.controlUnreachable)
         assertEquals("connection refused", s.controlError)
         assertFalse(TailnetStatus.parse("""{"state":"running","control":"unreachable"}""").controlUnreachable)
+        val slow = TailnetStatus.parse("""{"state":"starting","control":"slow","control_error":"context deadline exceeded"}""")
+        assertTrue(slow.controlSlow)
+        assertFalse(slow.controlUnreachable)
+        assertFalse(TailnetStatus.parse("""{"state":"running","control":"slow"}""").controlSlow)
         assertFalse(TailnetStatus.parse("{}").controlUnreachable)
         assertEquals(TailnetStatus.CONTROL_UNKNOWN, TailnetStatus.parse("{}").control)
     }

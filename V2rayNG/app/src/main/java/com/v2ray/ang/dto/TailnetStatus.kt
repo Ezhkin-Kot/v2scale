@@ -17,8 +17,11 @@ data class TailnetStatus(
     val isRunning get() = state == RUNNING
     val needsLogin get() = state == NEEDS_LOGIN && authUrl.isNotEmpty()
 
-    /** The node is waiting for control and the last probe could not reach it. */
+    /** The node is waiting for control and it is not answering (refused, no route, or timeouts for a long time). */
     val controlUnreachable get() = !isRunning && control == CONTROL_UNREACHABLE
+
+    /** Probes to control time out so far: a slow path (i2pd, a proxy) that may still come up. */
+    val controlSlow get() = !isRunning && control == CONTROL_SLOW
 
     companion object {
         const val STOPPED = "stopped"
@@ -26,6 +29,7 @@ data class TailnetStatus(
         const val NEEDS_LOGIN = "needs-login"
         const val CONTROL_UNKNOWN = "unknown"
         const val CONTROL_UNREACHABLE = "unreachable"
+        const val CONTROL_SLOW = "slow"
 
         /** A published status older than this belongs to a daemon that is gone. */
         const val STALE_AFTER_MS = 10_000L

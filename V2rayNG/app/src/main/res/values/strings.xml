@@ -605,4 +605,6 @@
     <string name="tailnet_path_tcp">connection</string>
     <string name="tailnet_main_control_down">Tailnet: control server unreachable (%1$s)</string>
     <string name="tailnet_status_control_down">Connecting… the control server is not reachable (%1$s). Check the address, the proxy or i2pd.</string>
+    <string name="tailnet_main_control_slow">Tailnet: connecting… the control server answers slowly</string>
+    <string name="tailnet_status_control_slow">Connecting… the control server answers slowly, this can take a minute on i2pd or a proxy.</string>
 </resources>

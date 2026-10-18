@@ -112,6 +112,7 @@ class MainViewModel(
     private var tailnetTest: TailnetTestState = TailnetTestState.None
     private var tailnetPollJob: Job? = null
     private var tailnetTestTimeoutJob: Job? = null
+    private var tailnetExpireJob: Job? = null
     private val pendingTestResults = linkedMapOf<String, Long>()
 
     private val testRequests = MainTestRequests()
@@ -189,6 +190,7 @@ class MainViewModel(
                 tailnetTestTimeoutJob?.cancel()
                 tailnetTest = event.result?.let { TailnetTestState.Done(it) } ?: TailnetTestState.None
                 publishTailnet()
+                if (event.result?.ok == false) expireTailnetFailure()
             }
 
             is MainServiceEvent.MeasureConfigCancelled -> {
@@ -942,6 +944,7 @@ class MainViewModel(
         val state = _uiState.value
         if (state.tailnet == MainTailnet.Hidden || tailnetTest is TailnetTestState.Running) return
         val requestId = UUID.randomUUID().toString()
+        tailnetExpireJob?.cancel()
         tailnetTest = TailnetTestState.Running(requestId)
         publishTailnet()
         dataSource.testTailnet(requestId)
@@ -951,6 +954,20 @@ class MainViewModel(
             delay(TAILNET_TEST_TIMEOUT_MS)
             if ((tailnetTest as? TailnetTestState.Running)?.requestId == requestId) {
                 tailnetTest = TailnetTestState.Done(TailnetTestResult(error = dataSource.getString(R.string.tailnet_main_no_reply)))
+                publishTailnet()
+                expireTailnetFailure()
+            }
+        }
+    }
+
+    /** A failure is shown for a moment, then the line goes back to the live node state (it may be up by then). */
+    private fun expireTailnetFailure() {
+        tailnetExpireJob?.cancel()
+        tailnetExpireJob = viewModelScope.launch {
+            delay(TAILNET_FAILURE_SHOWN_MS)
+            val done = tailnetTest as? TailnetTestState.Done ?: return@launch
+            if (!done.result.ok) {
+                tailnetTest = TailnetTestState.None
                 publishTailnet()
             }
         }
@@ -965,6 +982,7 @@ class MainViewModel(
         tailnetPollJob?.cancel()
         tailnetPollJob = null
         tailnetTestTimeoutJob?.cancel()
+        tailnetExpireJob?.cancel()
         tailnetTest = TailnetTestState.None
         if (!running) {
             tailnetSnapshot = TailnetSnapshot()
@@ -983,6 +1001,7 @@ class MainViewModel(
         MainTailnet.Hidden -> null
         MainTailnet.Connecting -> dataSource.getString(R.string.tailnet_main_connecting)
         MainTailnet.NeedsLogin -> dataSource.getString(R.string.tailnet_main_login)
+        MainTailnet.ControlSlow -> dataSource.getString(R.string.tailnet_main_control_slow)
         is MainTailnet.ControlUnreachable -> dataSource.getString(
             R.string.tailnet_main_control_down,
             tailnet.error.ifBlank { dataSource.getString(R.string.connection_test_empty_message) }
@@ -1028,6 +1047,7 @@ class MainViewModel(
         filterJob?.cancel()
         tailnetPollJob?.cancel()
         tailnetTestTimeoutJob?.cancel()
+        tailnetExpireJob?.cancel()
         cancelAllPing()
         dataSource.close()
         super.onCleared()
@@ -1047,6 +1067,7 @@ class MainViewModel(
     private companion object {
         const val TEST_RESULT_FLUSH_INTERVAL_MS = 500L
         const val TAILNET_POLL_MS = 2_000L
-        const val TAILNET_TEST_TIMEOUT_MS = 20_000L
+        const val TAILNET_TEST_TIMEOUT_MS = 80_000L // the core waits up to 60 s for the node, then tests for up to 10 s
+        const val TAILNET_FAILURE_SHOWN_MS = 10_000L
     }
 }

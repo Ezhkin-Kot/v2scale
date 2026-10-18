@@ -40,6 +40,12 @@ class MainTailnetTest {
     }
 
     @Test
+    fun slowControlIsNotShownAsAnError() {
+        val slow = TailnetSnapshot(true, TailnetStatus("starting", control = TailnetStatus.CONTROL_SLOW, controlError = "context deadline exceeded"))
+        assertEquals(MainTailnet.ControlSlow, mainTailnetOf(true, slow, none))
+    }
+
+    @Test
     fun aRunningNodeIgnoresALateUnreachableReport() {
         val late = TailnetSnapshot(true, TailnetStatus(TailnetStatus.RUNNING, "", listOf("100.64.0.13"), control = TailnetStatus.CONTROL_UNREACHABLE))
         assertEquals(MainTailnet.Ready(listOf("100.64.0.13")), mainTailnetOf(true, late, none))
