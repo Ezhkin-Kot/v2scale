@@ -14,6 +14,7 @@ import com.v2ray.ang.enums.BalancerStrategyType
 import com.v2ray.ang.enums.CoreResolvedType
 import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.extension.isNotNullEmpty
+import com.v2ray.ang.handler.LocalProxyAuth
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.handler.TailnetStore
@@ -522,6 +523,7 @@ object CoreConfigManager {
 
         val enableLocalProxy = forcedByHev || forcedBySocksRoot || MmkvManager.decodeSettingsBool(AppConfig.PREF_ENABLE_LOCAL_PROXY, true)
 
+        LocalProxyAuth.ensure()
         val socksPort = SettingsManager.getSocksPort()
         val socksUsername = SettingsManager.getSocksUsername()
         val socksPassword = SettingsManager.getSocksPassword()

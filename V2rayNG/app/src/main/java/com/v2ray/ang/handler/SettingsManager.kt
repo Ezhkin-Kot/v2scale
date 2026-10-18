@@ -275,13 +275,17 @@ object SettingsManager {
         return null
     }
 
-    fun getSocksUsername(): String? {
-        return MmkvManager.decodeSettingsString(AppConfig.PREF_SOCKS_USERNAME)?.trim()?.takeIf { it.isNotEmpty() }
-    }
+    fun getSocksUsername(): String? = effectiveSocksCredentials()?.first
 
-    fun getSocksPassword(): String? {
-        return MmkvManager.decodeSettingsString(AppConfig.PREF_SOCKS_PASSWORD)?.trim()?.takeIf { it.isNotEmpty() }
-    }
+    fun getSocksPassword(): String? = effectiveSocksCredentials()?.second
+
+    /** The user's credentials, else (V2Scale) generated ones while tailnet is on; null means an open inbound. */
+    private fun effectiveSocksCredentials(): Pair<String, String>? = LocalProxyAuth.effective(
+        MmkvManager.decodeSettingsString(AppConfig.PREF_SOCKS_USERNAME)?.trim(),
+        MmkvManager.decodeSettingsString(AppConfig.PREF_SOCKS_PASSWORD)?.trim(),
+        LocalProxyAuth.tailnetEnabled(),
+        LocalProxyAuth.stored(),
+    )
 
     /**
      * Get the HTTP port.

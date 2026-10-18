@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.ParcelFileDescriptor
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.contracts.Tun2SocksControl
+import com.v2ray.ang.handler.LocalProxyAuth
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.util.LogUtil
@@ -62,6 +63,8 @@ class TProxyService(
     }
 
     private fun buildConfig(): String {
+        // The tunnel may be configured before the core: the generated credentials must exist by now.
+        LocalProxyAuth.ensure()
         val socksPort = SettingsManager.getSocksPort()
         val socksUsername = SettingsManager.getSocksUsername()
         val socksPassword = SettingsManager.getSocksPassword()
