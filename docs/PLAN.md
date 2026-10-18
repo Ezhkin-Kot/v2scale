@@ -50,18 +50,18 @@
 
 Цель: доказать, что outbound `tailnet` в Xray работает, без Android.
 
-- [ ] 1.1 Стенд: Go-модуль `libv2scale` собирается на Mac. Тестовый control-сервер: пакет
+- [x] 1.1 Стенд (прогон против реального Headscale отложен до появления тестового ключа): Go-модуль `libv2scale` собирается на Mac. Тестовый control-сервер: пакет
   Tailscale `tstest/integration/testcontrol` (герметично, без интернета), плюс
   опциональный прогон против вашего реального Headscale (понадобится тестовый pre-auth ключ).
-- [ ] 1.2 Выяснить: принимает ли `core.New` конфигурацию, где правило роутинга ссылается на
+- [x] 1.2 Выяснить: принимает ли `core.New` конфигурацию, где правило роутинга ссылается на
   outbound-тег, добавляемый позже через `Manager.AddHandler`; выбрать между «плейсхолдер
   `freedom` с тем же тегом + `RemoveHandler`/`AddHandler`» и «добавление до `Start`».
-- [ ] 1.3 Каркас пакета `libv2scale/tailnet`: `Handler` (интерфейс `outbound.Handler`),
+- [x] 1.3 Каркас пакета `libv2scale/tailnet`: `Handler` (интерфейс `outbound.Handler`),
   `Config` (JSON), запуск `tsnet.Server` внутри. Только TCP, домены и IP.
-- [ ] 1.4 Тест-стенд: два tsnet-узла (клиент в Xray, «сервер» с эхо-слушателем), SOCKS-inbound
+- [x] 1.4 Тест-стенд: два tsnet-узла (клиент в Xray, «сервер» с эхо-слушателем), SOCKS-inbound
   Xray и роутинг `100.64.0.0/10 -> tailnet`. Проверить проход TCP.
-- [ ] 1.5 Таблица имён для `extra_records` Headscale (перенести из `tsnet-forward`).
-- [ ] 1.6 Юнит-тесты и бенчмарк на пропускную способность/память/горутины, утечки на Stop/Start.
+- [x] 1.5 Таблица имён для `extra_records` Headscale (перенести из `tsnet-forward`).
+- [x] 1.6 Юнит-тесты и бенчмарк на пропускную способность/память/горутины, утечки на Stop/Start.
 
 Критерий: `go test ./...` в `libv2scale` проходит; curl через SOCKS-inbound Xray достаёт сервис
 в тестовом tailnet, а «обычный» трафик по-прежнему идёт через proxy/direct.

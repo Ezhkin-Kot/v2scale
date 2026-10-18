@@ -3,6 +3,35 @@
 Записи в обратном хронологическом порядке (новые сверху). Формат: что сделали, что выяснили,
 что дальше.
 
+## 2026-10-18 - Фаза 1: Xray и tsnet в одном процессе (на Mac)
+
+Версия Tailscale: v1.104.1 (последняя стабильная; `v1.105.0-pre` - предрелиз, не берём).
+
+- **Зависимости.** `go get tailscale.com@v1.104.1` в `libv2scale`: Go выбрал gVisor
+  `20260915` и wireguard `20260522` (из Tailscale) вместо более старых у Xray; всё собирается, тесты
+  Xray `proxy/tun`, `proxy/wireguard`, `proxy/dns` проходят. `libv2ray.aar` пересобран с этими
+  версиями (20.1 МБ), на телефоне VPN, DNS и TCP работают.
+- **Пакет `libv2scale/tailnet`.** `Handler` (`outbound.Handler`: TCP, закрытие потоков как в
+  proxyman, таймауты политики), `Node` (обёртка `tsnet.Server`: конфиг JSON, подготовка окружения
+  Android, прокси control-канала через `tshttpproxy.SetProxyFunc` без переменных окружения, чтобы
+  не задеть Xray, статус, `WaitUp`, закрытие), таблица имён (`extra_records` с типом `A`,
+  статические `hosts`), `Config` с валидацией (неизвестные поля - ошибка).
+- **Эксперименты 1.2 (все пройдены, тесты в `instance_test.go`):** правило на ещё не существующий
+  тег загружается; обработчик добавляется до и после `Start`; при конфликте тега `AddHandler`
+  отказывает, `RemoveHandler` + `AddHandler` работает; домены приходят неразрешёнными; без
+  обработчика соединение падает (не утекает в другой outbound).
+- **Интеграция с настоящим tsnet (герметично, `testcontrol` + локальный DERP/STUN):** SOCKS ->
+  Xray -> `tailnet` -> tsnet -> эхо-пир работает по IP и по MagicDNS-имени; недоступный пир даёт
+  чистую ошибку; `extra_records` типа `A` голый tsnet не резолвит, наш `Node` резолвит.
+- **Нагрузка (на Mac, один процесс):** 16 МиБ в обе стороны за 291 мс (~55 МиБ/с), целостность
+  по SHA-256, 40 параллельных соединений, куча ~32 МиБ; после 4 циклов старт/стоп горутин столько
+  же, сколько до (6 -> 6); `go test -race` чисто.
+- **Не сделано в Фазе 1:** прогон против реального Headscale (нужен тестовый pre-auth ключ),
+  UDP (Фаза 2), подключение к `CoreController` (Фаза 2.5/3).
+- Коммиты: `build(libv2scale): add tailscale v1.104.1 dependency`, `feat(libv2scale): add tailnet
+  outbound handler for xray`, `feat(libv2scale): add embedded tailnet node with extra records
+  resolution`.
+
 ## 2026-10-18 - Фаза 0: сборка upstream
 
 - Решение по объёму v1 зафиксировано (без exit node и subnet routing).
